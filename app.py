@@ -45,19 +45,25 @@ def extrair_dados_imagem(image_file, prompt_tipo="hodometro"):
                 "{\"data\": \"AAAA-MM-DD\", \"litros\": 0.0, \"valor_total\": 0.0, \"combustivel\": \"Etanol/Gasolina\", \"posto\": \"Nome do Posto\"}"
             )
             
-        response = client.models.generate_content(
-            model='gemini-3.8-flash',
-            contents=[img, prompt],
-            config=types.GenerateContentConfig(response_mime_type="application/json")
-        )
-        return json.loads(response.text)
+        # Modelos mais recentes suportados
+        for model_name in ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-3.8-flash']:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=[img, prompt],
+                    config=types.GenerateContentConfig(response_mime_type="application/json")
+                )
+                return json.loads(response.text)
+            except Exception:
+                continue
+        return None
     except Exception as e:
         st.error(f"Erro na extração com IA: {e}")
         return None
 
 # Funções de Banco de Dados
 def carregar_veiculos():
-    res = supabase.table("veiculos").select("*").execute()
+    res = supabase.table("veiculos").select("*").order("placa").execute()
     return pd.DataFrame(res.data)
 
 def carregar_saldos(mes_ano_ref):
@@ -74,26 +80,25 @@ def carregar_saldos(mes_ano_ref):
 
 mes_ano_atual = datetime.date.today().strftime("%Y-%m")
 
-# ----------------- CONTROLO DE ACESSO & MENU -----------------
+# ----------------- MENU LATERAL COM CONTROLE DE ACESSO -----------------
 st.sidebar.title("🚗 Frota Spassu")
 st.sidebar.caption("Contratos PMVV & PMCI")
 
-# Campo discreto de autenticação do Gestor
-senha_gestor = st.sidebar.text_input("🔑 Senha de Gestão", type="password", help="Insira a senha para ver dados financeiros e relatórios completos.")
+senha_gestor = st.sidebar.text_input("🔑 Senha de Gestão", type="password")
 is_admin = bool(senha_gestor and senha_gestor == ADMIN_PASSWORD)
 
-# Menus para Técnicos
 menu_opcoes = [
     "📱 Novo Lançamento (Técnico)", 
     "⛽ Registrar Abastecimento", 
     "🔧 Alertas de Revisão"
 ]
 
-# Se autenticado como Gestor, adiciona as abas administrativas
 if is_admin:
-    st.sidebar.success("✅ Acesso Gestor Ativo")
+    st.sidebar.success("✅ Modo Gestor Ativo")
     menu_opcoes = [
         "📈 Dashboard Geral & Consumos",
+        "⚙️ Gestão da Frota & Veículos",
+        "⏪ Cancelar Últimos Lançamentos",
         "📊 Histórico de KM e Rotas",
         "📥 Exportar para Excel"
     ] + menu_opcoes
@@ -102,10 +107,10 @@ elif senha_gestor:
 
 menu = st.sidebar.radio("Navegação", menu_opcoes)
 
-# ----------------- 1. DASHBOARD GERAL (APENAS GESTOR) -----------------
+# ----------------- 1. DASHBOARD GERAL (GESTOR) -----------------
 if menu == "📈 Dashboard Geral & Consumos":
     st.title("📈 Dashboard Geral de Gestão da Frota")
-    st.caption("Visão executiva em tempo real integrada com o Supabase.")
+    st.caption("Visão macro de odômetro, rodagem e saldos dos cartões.")
 
     df_v = carregar_veiculos()
     saldos = carregar_saldos(mes_ano_atual)
@@ -132,7 +137,7 @@ if menu == "📈 Dashboard Geral & Consumos":
     st.divider()
 
     st.subheader(f"💳 Monitor de Cartões de Abastecimento ({mes_ano_atual})")
-    cols_card = st.columns(3)
+    cols_card = st.columns(len(df_v) if len(df_v) > 0 else 1)
     for i, row in df_v.iterrows():
         placa = row["placa"]
         saldo = saldos.get(placa, VALOR_CARGA_MENSAL)
@@ -146,13 +151,138 @@ if menu == "📈 Dashboard Geral & Consumos":
             st.metric("Saldo Disponível", f"R$ {saldo:,.2f}", f"- R$ {gasto:,.2f} usados")
             st.progress(max(0.0, min(1.0, saldo / VALOR_CARGA_MENSAL)))
             if pct < 20:
-                st.error(f"🚨 Alerta: Restam apenas {pct:.1f}% da cota!")
+                st.error(f"🚨 Alerta: Restam {pct:.1f}% da cota!")
             elif pct < 40:
-                st.warning(f"⚠️ Atenção: {pct:.1f}% de saldo restante.")
+                st.warning(f"⚠️ Atenção: {pct:.1f}% restante.")
             else:
-                st.success(f"✅ Saldo confortável: {pct:.1f}% disponível.")
+                st.success(f"✅ Saldo confortável: {pct:.1f}%")
 
-# ----------------- 2. NOVO LANÇAMENTO DE KM (TÉCNICOS E GESTOR) -----------------
+# ----------------- 2. GESTÃO DA FROTA E VEÍCULOS (GESTOR) -----------------
+elif menu == "⚙️ Gestão da Frota & Veículos":
+    st.title("⚙️ Gestão da Frota (Editar e Trocar Veículos)")
+    st.info("Aqui você pode alterar placa, modelo, técnico responsável e odômetro dos veículos.")
+
+    df_v = carregar_veiculos()
+    
+    tab_edit, tab_novo = st.tabs(["✏️ Editar Veículo Existente", "➕ Adicionar Novo Veículo"])
+    
+    with tab_edit:
+        if not df_v.empty:
+            veic_escolhido = st.selectbox(
+                "Selecione o Veículo para Modificar",
+                df_v["placa"].tolist(),
+                format_func=lambda x: f"{x} - {df_v[df_v['placa']==x]['modelo'].values[0]} ({df_v[df_v['placa']==x]['tecnico'].values[0]})"
+            )
+            v_info = df_v[df_v["placa"] == veic_escolhido].iloc[0]
+
+            with st.form("form_edit_veiculo"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    novo_modelo = st.text_input("Modelo / Apelido", value=v_info["modelo"])
+                    nova_marca = st.text_input("Marca / Fabricante", value=v_info["marca"])
+                    novo_tecnico = st.text_input("Técnico Responsável", value=v_info["tecnico"])
+                with col2:
+                    novo_km = st.number_input("Odômetro Atual (KM)", min_value=0, value=int(v_info["km_atual"]))
+                    nova_rev = st.number_input("Próxima Revisão (KM)", min_value=0, value=int(v_info["proxima_revisao"]))
+                    ultima_rev = st.text_input("Última Revisão", value=v_info["ultima_revisao"])
+
+                salvar_edicao = st.form_submit_button("💾 Salvar Alterações do Veículo")
+                if salvar_edicao:
+                    supabase.table("veiculos").update({
+                        "modelo": novo_modelo,
+                        "marca": nova_marca,
+                        "tecnico": novo_tecnico,
+                        "km_atual": int(novo_km),
+                        "proxima_revisao": int(nova_rev),
+                        "ultima_revisao": ultima_rev
+                    }).eq("placa", veic_escolhido).execute()
+                    st.success(f"Veículo `{veic_escolhido}` atualizado com sucesso!")
+                    st.rerun()
+
+    with tab_novo:
+        with st.form("form_novo_veiculo"):
+            col1, col2 = st.columns(2)
+            with col1:
+                cad_placa = st.text_input("Placa do Novo Veículo (Ex: ABC-1D23)").upper().strip()
+                cad_modelo = st.text_input("Modelo (Ex: Fiat Strada Branca)")
+                cad_marca = st.text_input("Marca (Ex: Fiat)")
+            with col2:
+                cad_tecnico = st.text_input("Técnico / Motorista Responsável")
+                cad_km = st.number_input("KM Inicial", min_value=0, value=0)
+                cad_rev = st.number_input("KM da 1ª Revisão", min_value=1000, value=10000)
+
+            cadastrar = st.form_submit_button("➕ Cadastrar Veículo na Frota")
+            if cadastrar:
+                if not cad_placa:
+                    st.error("Informe a placa do veículo.")
+                else:
+                    supabase.table("veiculos").insert({
+                        "placa": cad_placa,
+                        "modelo": cad_modelo,
+                        "marca": cad_marca,
+                        "tecnico": cad_tecnico,
+                        "km_atual": int(cad_km),
+                        "proxima_revisao": int(cad_rev),
+                        "ultima_revisao": "Revisão Inicial"
+                    }).execute()
+                    # Inicializar cartão
+                    supabase.table("cartoes_saldo").insert({
+                        "placa": cad_placa,
+                        "mes_ano": mes_ano_atual,
+                        "cota_mensal": VALOR_CARGA_MENSAL,
+                        "saldo_atual": VALOR_CARGA_MENSAL
+                    }).execute()
+                    st.success(f"Veículo `{cad_placa}` adicionado com sucesso!")
+                    st.rerun()
+
+# ----------------- 3. CANCELAR ÚLTIMOS LANÇAMENTOS (GESTOR) -----------------
+elif menu == "⏪ Cancelar Últimos Lançamentos":
+    st.title("⏪ Cancelar / Excluir Lançamentos Recentes")
+    st.caption("Acesso exclusivo de gestão para estornar erros de digitação ou testes.")
+
+    tab_abast, tab_km_canc = st.tabs(["⛽ Últimos 5 Abastecimentos", "🛣️ Últimos 5 Registros de KM"])
+
+    with tab_abast:
+        res_ab = supabase.table("abastecimentos").select("*").order("id", desc=True).limit(5).execute()
+        if res_ab.data:
+            for item in res_ab.data:
+                with st.expander(f"⛽ {item['data_abastecimento']} | Placa: {item['placa']} | R$ {float(item['valor_total']):,.2f} ({item['posto']})"):
+                    st.write(f"**Técnico:** {item['tecnico']} | **Litros:** {item['litros']}L | **KM no Abastecimento:** {item['km_atual']}")
+                    if st.button(f"🗑️ Excluir Abastecimento e Estornar R$ {float(item['valor_total']):,.2f}", key=f"del_ab_{item['id']}"):
+                        # 1. Recuperar saldo atual e estornar o valor
+                        saldos = carregar_saldos(mes_ano_atual)
+                        saldo_atual = saldos.get(item['placa'], VALOR_CARGA_MENSAL)
+                        novo_saldo = min(VALOR_CARGA_MENSAL, saldo_atual + float(item['valor_total']))
+                        
+                        supabase.table("cartoes_saldo").update({"saldo_atual": novo_saldo}).eq("placa", item['placa']).eq("mes_ano", mes_ano_atual).execute()
+                        # 2. Excluir registro
+                        supabase.table("abastecimentos").delete().eq("id", item['id']).execute()
+                        st.success(f"Abastecimento removido e R$ {float(item['valor_total']):,.2f} estornado para o cartão `{item['placa']}`!")
+                        st.rerun()
+        else:
+            st.info("Nenhum abastecimento registrado até ao momento.")
+
+    with tab_km_canc:
+        res_k = supabase.table("registros_km").select("*").order("id", desc=True).limit(5).execute()
+        if res_k.data:
+            for item in res_k.data:
+                with st.expander(f"🛣️ {item['data_registro']} | Placa: {item['placa']} | Rodou: {item['km_percorrido']} km (Final: {item['km_final']} km)"):
+                    st.write(f"**Técnico:** {item['tecnico']} | **Rota:** {item['rota']} | **Obs:** {item.get('observacoes', '-')}")
+                    if st.button(f"🗑️ Excluir Lançamento de KM #{item['id']}", key=f"del_km_{item['id']}"):
+                        # Excluir registro
+                        supabase.table("registros_km").delete().eq("id", item['id']).execute()
+                        
+                        # Restaurar odômetro do veículo para o último KM válido
+                        rest_max = supabase.table("registros_km").select("km_final").eq("placa", item['placa']).order("km_final", desc=True).limit(1).execute()
+                        if rest_max.data:
+                            km_restaurado = rest_max.data[0]["km_final"]
+                            supabase.table("veiculos").update({"km_atual": km_restaurado}).eq("placa", item['placa']).execute()
+                        st.success("Lançamento de KM excluído com sucesso!")
+                        st.rerun()
+        else:
+            st.info("Nenhum registro de KM encontrado.")
+
+# ----------------- 4. NOVO LANÇAMENTO DE KM (TÉCNICOS E GESTOR) -----------------
 elif menu == "📱 Novo Lançamento (Técnico)":
     st.header("📸 Registro de KM e Rota")
     df_v = carregar_veiculos()
@@ -199,7 +329,7 @@ elif menu == "📱 Novo Lançamento (Técnico)":
                 st.success(f"✅ Lançamento gravado com sucesso! Odômetro do {veiculo_atual['modelo']} atualizado para {km_final:,} km.".replace(",", "."))
                 st.rerun()
 
-# ----------------- 3. REGISTRAR ABASTECIMENTO (TÉCNICOS E GESTOR) -----------------
+# ----------------- 5. REGISTRAR ABASTECIMENTO (TÉCNICOS E GESTOR) -----------------
 elif menu == "⛽ Registrar Abastecimento":
     st.header("⛽ Registro de Abastecimento com Leitor de Cupom")
     df_v = carregar_veiculos()
@@ -252,7 +382,7 @@ elif menu == "⛽ Registrar Abastecimento":
                 st.success(f"✅ Abastecimento gravado com sucesso!")
                 st.rerun()
 
-# ----------------- 4. HISTÓRICO DE KM (APENAS GESTOR) -----------------
+# ----------------- 6. HISTÓRICO DE KM (GESTOR) -----------------
 elif menu == "📊 Histórico de KM e Rotas":
     st.header("📊 Painel Consolidado de KM e Rotas")
     res = supabase.table("registros_km").select("*").order("created_at", desc=True).execute()
@@ -262,11 +392,11 @@ elif menu == "📊 Histórico de KM e Rotas":
     else:
         st.info("Nenhum registro lançado ainda. Os novos registros aparecerão aqui em tempo real.")
 
-# ----------------- 5. ALERTAS DE REVISÃO (TÉCNICOS E GESTOR) -----------------
+# ----------------- 7. ALERTAS DE REVISÃO (TODOS) -----------------
 elif menu == "🔧 Alertas de Revisão":
     st.header("🔧 Status de Manutenção e Revisões Preventivas")
     df_v = carregar_veiculos()
-    cols = st.columns(len(df_v))
+    cols = st.columns(len(df_v)) if len(df_v) > 0 else [st.container()]
     for i, row in df_v.iterrows():
         km_restante = row["proxima_revisao"] - row["km_atual"]
         with cols[i]:
@@ -295,7 +425,7 @@ elif menu == "🔧 Alertas de Revisão":
                     f"* **Status:** VENCIDA (Agendar Urgente)"
                 )
 
-# ----------------- 6. EXPORTAR PARA EXCEL (APENAS GESTOR) -----------------
+# ----------------- 8. EXPORTAR PARA EXCEL (GESTOR) -----------------
 elif menu == "📥 Exportar para Excel":
     st.header("📊 Exportação de Dados para o Microsoft Office 365")
     df_v = carregar_veiculos()
