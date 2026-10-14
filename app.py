@@ -10,6 +10,15 @@ st.set_page_config(page_title="Frota Spassu - PMVV / PMCI", page_icon="🚗", la
 
 EXCEL_FILE = "Gestao_Frota_Spassu_PMVV_Atualizada.xlsx"
 API_KEY = st.secrets.get("GEMINI_API_KEY", "")
+VALOR_CARGA_MENSAL = 700.00
+
+# Inicialização dos saldos em sessão (base inicial informada)
+if "saldos_cartao" not in st.session_state:
+    st.session_state.saldos_cartao = {
+        "TYA-2J42": 272.00,  # Polo
+        "TXV-9E58": 517.00,  # Onix
+        "TXJ-3C03": 231.00   # HB20
+    }
 
 def extrair_dados_imagem(image_file, prompt_tipo="hodometro"):
     if not API_KEY:
@@ -40,19 +49,115 @@ def extrair_dados_imagem(image_file, prompt_tipo="hodometro"):
         st.error(f"Erro na extração: {e}")
         return None
 
-# Menu Lateral
+# Menu Lateral de Navegação
 st.sidebar.title("🚗 Frota Spassu")
 st.sidebar.caption("Contratos PMVV & PMCI")
 menu = st.sidebar.radio("Navegação", [
+    "📈 Dashboard Geral & Consumos",
     "📱 Novo Lançamento (Técnico)", 
     "⛽ Registrar Abastecimento", 
-    "📊 Painel Geral de KM e Rotas", 
+    "📊 Histórico de KM e Rotas", 
     "🔧 Alertas de Revisão",
     "📥 Exportar para Excel"
 ])
 
-# ----------------- 1. NOVO LANÇAMENTO DE KM (FOTO HODÔMETRO) -----------------
-if menu == "📱 Novo Lançamento (Técnico)":
+# ----------------- 1. DASHBOARD GERAL & CONSUMOS -----------------
+if menu == "📈 Dashboard Geral & Consumos":
+    st.title("📈 Dashboard Geral de Gestão da Frota")
+    st.caption("Visão macro de odômetro, rodagem mensal, cartões de abastecimento e consumo anual.")
+
+    # Carregar dados do Excel
+    try:
+        df_km = pd.read_excel(EXCEL_FILE, sheet_name="Controle KM e Rotas", skiprows=1)
+        df_km['Data Fim'] = pd.to_datetime(df_km['Data Fim'])
+        df_km['KM Percorrido'] = df_km['KM Final'] - df_km['KM Inicial']
+        df_km['Mes'] = df_km['Data Fim'].dt.month
+        df_km['Ano'] = df_km['Data Fim'].dt.year
+    except Exception:
+        df_km = pd.DataFrame()
+
+    # Veículos ativos
+    veiculos = {
+        "TYA-2J42": {"nome": "Polo Preto", "km_atual": 23600, "tecnico": "Antônio Henrique"},
+        "TXV-9E58": {"nome": "Onix Branco", "km_atual": 25253, "tecnico": "André Vieira"},
+        "TXJ-3C03": {"nome": "HB20 Prata", "km_atual": 16720, "tecnico": "Thaynã Costa"}
+    }
+
+    # Cálculos Globais
+    total_km_frota = sum(v["km_atual"] for v in veiculos.values())
+    mes_atual = datetime.date.today().month
+    ano_atual = datetime.date.today().year
+
+    if not df_km.empty:
+        df_mes = df_km[(df_km['Mes'] == mes_atual) & (df_km['Ano'] == ano_atual)]
+        km_mes_total = df_mes['KM Percorrido'].sum() if not df_mes.empty else 2642
+    else:
+        km_mes_total = 2642
+
+    saldo_total_cartoes = sum(st.session_state.saldos_cartao.values())
+    gasto_total_cartoes = (VALOR_CARGA_MENSAL * 3) - saldo_total_cartoes
+
+    # Indicadores principais em Cards (Métricas)
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Odômetro Geral", f"{total_km_frota:,} km".replace(",", "."), "Total Frota")
+    col2.metric("KM Percorrido no Mês", f"{int(km_mes_total):,} km".replace(",", "."), f"Mês {mes_atual:02d}/{ano_atual}")
+    col3.metric("Gasto Cartões (Mês)", f"R$ {gasto_total_cartoes:,.2f}", f"Teto: R$ 2.100,00")
+    col4.metric("Saldo Restante (Frota)", f"R$ {saldo_total_cartoes:,.2f}", f"{saldo_total_cartoes/(2100)*100:.1f}% disponível")
+
+    st.divider()
+
+    # ---------------- MONITOR DOS CARTÕES (R$ 700/MÊS) ----------------
+    st.subheader("💳 Monitor de Cartões de Abastecimento (Cota Mensal: R$ 700,00)")
+    st.info("⚠️ O saldo mensal de R$ 700,00 não acumula para o próximo mês. Conforme os técnicos lançam abastecimentos, o saldo é debitado automaticamente.")
+
+    cols_card = st.columns(3)
+    for i, (placa, v) in enumerate(veiculos.items()):
+        saldo = st.session_state.saldos_cartao.get(placa, VALOR_CARGA_MENSAL)
+        gasto = VALOR_CARGA_MENSAL - saldo
+        pct_restante = (saldo / VALOR_CARGA_MENSAL) * 100
+
+        with cols_card[i]:
+            st.markdown(f"#### 🚗 {v['nome']} (`{placa}`)")
+            st.write(f"**Técnico:** {v['tecnico']}")
+            st.write(f"**KM Atual:** {v['km_atual']:,} km".replace(",", "."))
+            st.metric("Saldo Disponível", f"R$ {saldo:,.2f}", f"- R$ {gasto:,.2f} usados")
+            
+            # Barra de progresso visual
+            st.progress(max(0.0, min(1.0, saldo / VALOR_CARGA_MENSAL)))
+            
+            if pct_restante < 20:
+                st.error(f"🚨 Alerta: Restam apenas {pct_restante:.1f}% da cota!")
+            elif pct_restante < 40:
+                st.warning(f"⚠️ Atenção: {pct_restante:.1f}% de saldo restante.")
+            else:
+                st.success(f"✅ Saldo confortável: {pct_restante:.1f}% disponível.")
+
+    st.divider()
+
+    # ---------------- EVOLUÇÃO MENSAL E ANUAL ----------------
+    st.subheader("📊 Consumo e Rodagem: Mensal e Anual")
+    
+    if not df_km.empty:
+        # Tabela resumo por mês e veículo
+        pivot_km = df_km.pivot_table(
+            index="Mes", 
+            columns="Placa", 
+            values="KM Percorrido", 
+            aggfunc="sum", 
+            fill_value=0
+        )
+        meses_labels = {3: "Mar", 4: "Abr", 5: "Mai", 6: "Jun", 7: "Jul", 8: "Ago", 9: "Set", 10: "Out"}
+        pivot_km.index = [meses_labels.get(m, f"Mês {m}") for m in pivot_km.index]
+        pivot_km["Total Frota"] = pivot_km.sum(axis=1)
+
+        tab1, tab2 = st.tabs(["📈 Gráfico Comparativo", "📋 Tabela Detalhada"])
+        with tab1:
+            st.bar_chart(pivot_km[["TYA-2J42", "TXV-9E58", "TXJ-3C03"]])
+        with tab2:
+            st.dataframe(pivot_km.style.format("{:,.0f} km"), use_container_width=True)
+
+# ----------------- 2. NOVO LANÇAMENTO DE KM (FOTO HODÔMETRO) -----------------
+elif menu == "📱 Novo Lançamento (Técnico)":
     st.header("📸 Registro de KM e Rota")
     st.info("Tire uma foto do painel do veículo para leitura automática do hodômetro.")
     
@@ -62,7 +167,7 @@ if menu == "📱 Novo Lançamento (Técnico)":
         "TXJ-3C03 - Hyundai HB20 (Thaynã Costa)"
     ])
     
-    foto_painel = st.camera_input("Tirar foto do painel (Hodômetro)") or st.file_uploader("Ou envie uma foto do painel", type=['jpg', 'jpeg', 'png'])
+    foto_painel = st.camera_input("Tirar foto do painel") or st.file_uploader("Ou envie uma foto do painel", type=['jpg', 'jpeg', 'png'])
     
     km_detectado = 0
     if foto_painel:
@@ -83,9 +188,9 @@ if menu == "📱 Novo Lançamento (Técnico)":
         
         salvar = st.form_submit_button("✅ Gravar Registro de KM")
         if salvar:
-            st.success("Lançamento registado com sucesso!")
+            st.success("Lançamento gravado com sucesso!")
 
-# ----------------- 2. REGISTRAR ABASTECIMENTO (FOTO CUPOM) -----------------
+# ----------------- 3. REGISTRAR ABASTECIMENTO (FOTO CUPOM) -----------------
 elif menu == "⛽ Registrar Abastecimento":
     st.header("⛽ Registro de Abastecimento com Leitor de Cupom")
     
@@ -111,12 +216,15 @@ elif menu == "⛽ Registrar Abastecimento":
             posto = st.text_input("Posto de Combustível", value=dados_iniciais.get("posto", ""))
             tecnico = st.text_input("Técnico Responsável")
             
-        gravar_abast = st.form_submit_button("💾 Salvar Abastecimento")
+        gravar_abast = st.form_submit_button("💾 Salvar Abastecimento e Debitar Cartão")
         if gravar_abast:
-            st.success("Abastecimento registado com sucesso!")
+            # Debita o valor do saldo do cartão automaticamente
+            if placa in st.session_state.saldos_cartao:
+                st.session_state.saldos_cartao[placa] = max(0.0, st.session_state.saldos_cartao[placa] - valor_total)
+            st.success(f"Abastecimento registrado! Novo saldo do cartão `{placa}`: R$ {st.session_state.saldos_cartao[placa]:,.2f}")
 
-# ----------------- 3. PAINEL GERAL DE KM -----------------
-elif menu == "📊 Painel Geral de KM e Rotas":
+# ----------------- 4. HISTÓRICO DE KM E ROTAS -----------------
+elif menu == "📊 Histórico de KM e Rotas":
     st.header("📊 Painel Consolidado de KM e Rotas")
     try:
         df_km = pd.read_excel(EXCEL_FILE, sheet_name="Controle KM e Rotas", skiprows=1)
@@ -124,12 +232,11 @@ elif menu == "📊 Painel Geral de KM e Rotas":
     except Exception as e:
         st.warning("Carregando base de dados...")
 
-# ----------------- 4. ALERTAS DE REVISÃO (DINÂMICO E AUTOMÁTICO) -----------------
+# ----------------- 5. ALERTAS DE REVISÃO -----------------
 elif menu == "🔧 Alertas de Revisão":
     st.header("🔧 Status de Manutenção e Revisões Preventivas")
     st.caption("Controle automático com base nas revisões de 10.000 em 10.000 km.")
 
-    # Dados consolidados dos veículos
     veiculos_status = [
         {"nome": "Polo (TYA-2J42)", "km_atual": 23600, "proxima_rev": 30000, "ultima": "20.000 km (Realizada)"},
         {"nome": "Onix (TXV-9E58)", "km_atual": 25253, "proxima_rev": 30000, "ultima": "20.000 km (Realizada)"},
@@ -166,7 +273,7 @@ elif menu == "🔧 Alertas de Revisão":
                     f"* **Status:** VENCIDA (Agendar Urgente)"
                 )
 
-# ----------------- 5. EXPORTAÇÃO PARA MICROSOFT EXCEL -----------------
+# ----------------- 6. EXPORTAÇÃO PARA MICROSOFT EXCEL -----------------
 elif menu == "📥 Exportar para Excel":
     st.header("📊 Exportação de Dados para o Microsoft Office 365")
     st.write("Transfira a base de dados consolidada em formato `.xlsx` pronta para abrir e manipular no Microsoft Excel.")
