@@ -124,17 +124,47 @@ elif menu == "📊 Painel Geral de KM e Rotas":
     except Exception as e:
         st.warning("Carregando base de dados...")
 
-# ----------------- 4. ALERTAS DE REVISÃO -----------------
+# ----------------- 4. ALERTAS DE REVISÃO (DINÂMICO E AUTOMÁTICO) -----------------
 elif menu == "🔧 Alertas de Revisão":
-    st.header("⚠️ Status de Manutenção e Revisões Preventivas")
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.error("🚨 **Polo (TYA-2J42)**\n* KM Atual: 23.600 km\n* Próxima: 20.000 km\n* **Status: VENCIDA (Agendar Urgente)**")
-    with col2:
-        st.error("🚨 **Onix (TXV-9E58)**\n* KM Atual: 25.253 km\n* Próxima: 20.000 km\n* **Status: VENCIDA (Agendar Urgente)**")
-    with col3:
-        st.warning("⚠️ **HB20 (TXJ-3C03)**\n* KM Atual: 16.720 km\n* Próxima: 10.000 km\n* **Status: VENCIDA (Agendar Urgente)**")
+    st.header("🔧 Status de Manutenção e Revisões Preventivas")
+    st.caption("Controle automático com base nas revisões de 10.000 em 10.000 km.")
+
+    # Dados consolidados dos veículos
+    veiculos_status = [
+        {"nome": "Polo (TYA-2J42)", "km_atual": 23600, "proxima_rev": 30000, "ultima": "20.000 km (Realizada)"},
+        {"nome": "Onix (TXV-9E58)", "km_atual": 25253, "proxima_rev": 30000, "ultima": "20.000 km (Realizada)"},
+        {"nome": "HB20 (TXJ-3C03)", "km_atual": 16720, "proxima_rev": 20000, "ultima": "10.000 km (Realizada)"}
+    ]
+
+    cols = st.columns(3)
+    for i, v in enumerate(veiculos_status):
+        km_restante = v["proxima_rev"] - v["km_atual"]
+        with cols[i]:
+            if km_restante > 1000:
+                st.success(
+                    f"✅ **{v['nome']}**\n\n"
+                    f"* **KM Atual:** {v['km_atual']:,} km\n".replace(",", ".") +
+                    f"* **Última Revisão:** {v['ultima']}\n"
+                    f"* **Próxima Revisão:** {v['proxima_rev']:,} km\n".replace(",", ".") +
+                    f"* **Margem Restante:** {km_restante:,} km\n".replace(",", ".") +
+                    f"* **Status:** Em dia"
+                )
+            elif km_restante >= 0:
+                st.warning(
+                    f"⚠️ **{v['nome']}**\n\n"
+                    f"* **KM Atual:** {v['km_atual']:,} km\n".replace(",", ".") +
+                    f"* **Próxima Revisão:** {v['proxima_rev']:,} km\n".replace(",", ".") +
+                    f"* **Margem Restante:** {km_restante:,} km\n".replace(",", ".") +
+                    f"* **Status:** Agendar Revisão (Próxima)"
+                )
+            else:
+                st.error(
+                    f"🚨 **{v['nome']}**\n\n"
+                    f"* **KM Atual:** {v['km_atual']:,} km\n".replace(",", ".") +
+                    f"* **Próxima Revisão:** {v['proxima_rev']:,} km\n".replace(",", ".") +
+                    f"* **Excedido:** {abs(km_restante):,} km\n".replace(",", ".") +
+                    f"* **Status:** VENCIDA (Agendar Urgente)"
+                )
 
 # ----------------- 5. EXPORTAÇÃO PARA MICROSOFT EXCEL -----------------
 elif menu == "📥 Exportar para Excel":
