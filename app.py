@@ -314,7 +314,3 @@ elif menu == "📥 Exportar para Excel":
         file_name="Gestao_Frota_Spassu_Nuvem.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-    except Exception as e:
-        st.error("Ficheiro base não encontrado.")
