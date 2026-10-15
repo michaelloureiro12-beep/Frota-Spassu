@@ -9,9 +9,134 @@ from google import genai
 from google.genai import types
 from supabase import create_client, Client
 
-st.set_page_config(page_title="Frota Spassu - PMVV / PMCI", page_icon="🚗", layout="wide")
+# Configuração da Página
+st.set_page_config(
+    page_title="Frota Spassu - PMVV / PMCI",
+    page_icon="🚗",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Configurações de API e Conexões
+# ----------------- DESIGN SYSTEM / CSS MODERNO -----------------
+st.markdown("""
+<style>
+    /* Importação de fonte moderna */
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    /* Fundo da Aplicação */
+    .stApp {
+        background: radial-gradient(circle at 10% 20%, rgba(20, 27, 45, 0.95) 0%, rgba(10, 13, 22, 1) 90%);
+        color: #f1f5f9;
+    }
+
+    /* Barra Lateral Estilizada */
+    section[data-testid="stSidebar"] {
+        background: rgba(15, 23, 42, 0.9) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(12px);
+    }
+
+    /* Cards Executivos de Métrica */
+    .metric-card {
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 20px 22px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(8px);
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .metric-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(99, 102, 241, 0.4);
+    }
+    .metric-title {
+        color: #94a3b8;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 6px;
+    }
+    .metric-value {
+        color: #f8fafc;
+        font-size: 1.85rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+    .metric-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-top: 6px;
+    }
+    .badge-blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .badge-green { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+    .badge-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .badge-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+
+    /* Card dos Veículos */
+    .vehicle-card {
+        background: linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        padding: 22px;
+        box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.4);
+        margin-bottom: 15px;
+    }
+    .vehicle-plate {
+        background: #0f172a;
+        color: #38bdf8;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        letter-spacing: 0.08em;
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        display: inline-block;
+    }
+
+    /* Botões Modernos */
+    div.stButton > button {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 10px 20px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.35) !important;
+    }
+    div.stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px 0 rgba(37, 99, 235, 0.5) !important;
+    }
+
+    /* Formulários e Inputs */
+    div[data-testid="stForm"] {
+        background: rgba(30, 41, 59, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 16px;
+        padding: 24px;
+        backdrop-filter: blur(8px);
+    }
+    
+    /* Tabelas */
+    div[data-testid="stDataFrame"] {
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ----------------- CREDENCIAIS & BANCO -----------------
 GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "")
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
@@ -61,7 +186,6 @@ def extrair_dados_imagem(image_file, prompt_tipo="hodometro"):
         st.error(f"Erro na extração com IA: {e}")
         return None
 
-# Funções de Banco e Arquivos
 def carregar_veiculos():
     res = supabase.table("veiculos").select("*").order("placa").execute()
     return pd.DataFrame(res.data)
@@ -95,49 +219,59 @@ def carregar_historico_excel():
 
 mes_ano_atual = datetime.date.today().strftime("%Y-%m")
 
-# ----------------- MENU LATERAL COM CONTROLE DE ACESSO -----------------
-st.sidebar.title("🚗 Frota Spassu")
-st.sidebar.caption("Contratos PMVV & PMCI")
+# ----------------- SIDEBAR MODERNA -----------------
+with st.sidebar:
+    st.markdown("""
+        <div style="padding: 10px 0 20px 0; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 15px;">
+            <h2 style="margin: 0; color: #38bdf8; font-weight: 800; font-size: 1.5rem;">🚗 SPASSU FROTA</h2>
+            <p style="margin: 3px 0 0 0; color: #94a3b8; font-size: 0.8rem; font-weight: 500;">Contratos PMVV & PMCI</p>
+        </div>
+    """, unsafe_allow_html=True)
 
-senha_gestor = st.sidebar.text_input("🔑 Senha de Gestão", type="password")
-is_admin = bool(senha_gestor and senha_gestor == ADMIN_PASSWORD)
+    senha_gestor = st.text_input("🔑 Senha de Gestão", type="password", placeholder="Digite a senha...")
+    is_admin = bool(senha_gestor and senha_gestor == ADMIN_PASSWORD)
 
-menu_opcoes = [
-    "📱 Novo Lançamento (Técnico)", 
-    "⛽ Registrar Abastecimento", 
-    "🔧 Alertas de Revisão"
-]
+    if is_admin:
+        st.markdown('<div class="metric-badge badge-green" style="margin-bottom: 15px;">✓ Acesso Gestor Desbloqueado</div>', unsafe_allow_html=True)
+        menu_opcoes = [
+            "📈 Dashboard Geral & Consumos",
+            "⚙️ Gestão da Frota & Veículos",
+            "⏪ Cancelar Últimos Lançamentos",
+            "📊 Histórico de KM e Rotas",
+            "📥 Exportar para Excel",
+            "📱 Novo Lançamento (Técnico)", 
+            "⛽ Registrar Abastecimento", 
+            "🔧 Alertas de Revisão"
+        ]
+    else:
+        if senha_gestor:
+            st.markdown('<div class="metric-badge badge-amber" style="margin-bottom: 15px;">Senha Incorreta</div>', unsafe_allow_html=True)
+        menu_opcoes = [
+            "📱 Novo Lançamento (Técnico)", 
+            "⛽ Registrar Abastecimento", 
+            "🔧 Alertas de Revisão"
+        ]
 
-if is_admin:
-    st.sidebar.success("✅ Modo Gestor Ativo")
-    menu_opcoes = [
-        "📈 Dashboard Geral & Consumos",
-        "⚙️ Gestão da Frota & Veículos",
-        "⏪ Cancelar Últimos Lançamentos",
-        "📊 Histórico de KM e Rotas",
-        "📥 Exportar para Excel"
-    ] + menu_opcoes
-elif senha_gestor:
-    st.sidebar.error("Senha incorreta")
+    st.markdown("<p style='color: #64748b; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; margin-top: 10px;'>Módulos</p>", unsafe_allow_html=True)
+    menu = st.radio("Menu de Navegação", menu_opcoes, label_visibility="collapsed")
 
-menu = st.sidebar.radio("Navegação", menu_opcoes)
-
-# ----------------- 1. DASHBOARD GERAL (GESTOR) -----------------
+# ----------------- 1. DASHBOARD GERAL MODERNO -----------------
 if menu == "📈 Dashboard Geral & Consumos":
-    st.title("📈 Dashboard Geral de Gestão da Frota")
-    st.caption("Visão macro de odômetro, rodagem semanal, saldos dos cartões e histórico completo.")
+    st.markdown("""
+        <div style="margin-bottom: 25px;">
+            <h1 style="color: #f8fafc; font-weight: 800; font-size: 2.2rem; margin-bottom: 4px;">Painel de Controle Executivo</h1>
+            <p style="color: #94a3b8; font-size: 0.95rem;">Monitoramento integrado de quilometragem, cotas e manutenção em tempo real.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
     df_v = carregar_veiculos()
     saldos = carregar_saldos(mes_ano_atual)
-    df_excel_km, nome_arq_excel = carregar_historico_excel()
+    df_excel_km, _ = carregar_historico_excel()
 
     res_km = supabase.table("registros_km").select("*").order("data_registro", desc=True).execute()
     df_supa_km = pd.DataFrame(res_km.data)
 
-    # Consolidar linhas para a tabela semanal
     linhas_tabela = []
-
-    # 1. Novos registros do Supabase
     if not df_supa_km.empty:
         for _, r in df_supa_km.iterrows():
             d_dt = pd.to_datetime(r["data_registro"])
@@ -150,10 +284,9 @@ if menu == "📈 Dashboard Geral & Consumos":
                 "KM Final": int(r["km_final"]),
                 "KM Percorrido": int(r["km_percorrido"]),
                 "Motorista": r["tecnico"],
-                "Observações": r.get("observacoes", "") or r.get("rota", "Lançamento em tempo real")
+                "Observações": r.get("observacoes", "") or r.get("rota", "Lançamento via App")
             })
 
-    # 2. Histórico da planilha (março a outubro)
     if not df_excel_km.empty:
         for _, r in df_excel_km.iterrows():
             if pd.notna(r.get("Placa")) and pd.notna(r.get("KM Inicial")):
@@ -168,7 +301,6 @@ if menu == "📈 Dashboard Geral & Consumos":
 
                 km_ini = int(r["KM Inicial"])
                 km_fim = int(r["KM Final"])
-                km_perc = km_fim - km_ini
                 linhas_tabela.append({
                     "Placa": str(r["Placa"]).strip(),
                     "Semana": r.get("Semana", "-"),
@@ -176,7 +308,7 @@ if menu == "📈 Dashboard Geral & Consumos":
                     "Data Fim": d_fim,
                     "KM Inicial": km_ini,
                     "KM Final": km_fim,
-                    "KM Percorrido": km_perc,
+                    "KM Percorrido": km_fim - km_ini,
                     "Motorista": r.get("Técnico / Motorista", r.get("Motorista", "-")),
                     "Observações": r.get("Observações", r.get("Rota / Destino / Motivo", "-"))
                 })
@@ -185,50 +317,99 @@ if menu == "📈 Dashboard Geral & Consumos":
 
     total_km_frota = df_v["km_atual"].sum() if not df_v.empty else 0
     saldo_total_cartoes = sum(saldos.values())
-    gasto_total_mes = (VALOR_CARGA_MENSAL * len(df_v)) - saldo_total_cartoes
+    teto_total = VALOR_CARGA_MENSAL * len(df_v)
+    gasto_total_mes = teto_total - saldo_total_cartoes
 
-    # KM rodado em outubro
     km_mes = 2642
     if not df_supa_km.empty:
         df_supa_km["dt"] = pd.to_datetime(df_supa_km["data_registro"])
         mes_rodado = df_supa_km[df_supa_km["dt"].dt.strftime("%Y-%m") == mes_ano_atual]["km_percorrido"].sum()
         km_mes += mes_rodado
 
+    # CARDS EXECUTIVOS SUPERIORES
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Odômetro Geral", f"{total_km_frota:,} km".replace(",", "."), "Total Frota")
-    col2.metric("KM Percorrido no Mês", f"{int(km_mes):,} km".replace(",", "."), f"Ref: {mes_ano_atual}")
-    col3.metric("Gasto Cartões (Mês)", f"R$ {gasto_total_mes:,.2f}", f"Teto: R$ {VALOR_CARGA_MENSAL * len(df_v):,.2f}")
-    col4.metric("Saldo Restante (Frota)", f"R$ {saldo_total_cartoes:,.2f}", f"{(saldo_total_cartoes/(VALOR_CARGA_MENSAL*len(df_v)))*100:.1f}% restante")
+    with col1:
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title">Odômetro Geral</div>
+                <div class="metric-value">{total_km_frota:,} <span style="font-size: 1rem; color: #94a3b8;">km</span></div>
+                <span class="metric-badge badge-blue">Total Consolidado</span>
+            </div>
+        """.replace(",", "."), unsafe_allow_html=True)
 
-    st.divider()
+    with col2:
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title">Rodagem do Mês</div>
+                <div class="metric-value">{int(km_mes):,} <span style="font-size: 1rem; color: #94a3b8;">km</span></div>
+                <span class="metric-badge badge-purple">Mês Ref: {mes_ano_atual}</span>
+            </div>
+        """.replace(",", "."), unsafe_allow_html=True)
 
-    # Monitor dos Cartões
-    st.subheader(f"💳 Monitor de Cartões de Abastecimento ({mes_ano_atual})")
-    cols_card = st.columns(len(df_v) if len(df_v) > 0 else 1)
+    with col3:
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title">Consumo de Cotas</div>
+                <div class="metric-value">R$ {gasto_total_mes:,.2f}</div>
+                <span class="metric-badge badge-amber">Teto: R$ {teto_total:,.2f}</span>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col4:
+        pct_restante = (saldo_total_cartoes / teto_total * 100) if teto_total > 0 else 0
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title">Saldo Disponível</div>
+                <div class="metric-value">R$ {saldo_total_cartoes:,.2f}</div>
+                <span class="metric-badge badge-green">{pct_restante:.1f}% Disponível</span>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+
+    # MONITOR DOS VEÍCULOS
+    st.markdown("<h3 style='color: #f8fafc; font-weight: 700; margin-bottom: 15px;'>🚗 Monitor Individual dos Veículos e Cartões</h3>", unsafe_allow_html=True)
+    cols_v = st.columns(len(df_v) if len(df_v) > 0 else 1)
+    
     for i, row in df_v.iterrows():
         placa = row["placa"]
         saldo = saldos.get(placa, VALOR_CARGA_MENSAL)
         gasto = VALOR_CARGA_MENSAL - saldo
         pct = (saldo / VALOR_CARGA_MENSAL) * 100
 
-        with cols_card[i]:
-            st.markdown(f"#### 🚗 {row['modelo']} (`{placa}`)")
-            st.write(f"**Técnico:** {row['tecnico']}")
-            st.write(f"**KM Atual:** {row['km_atual']:,} km".replace(",", "."))
-            st.metric("Saldo Disponível", f"R$ {saldo:,.2f}", f"- R$ {gasto:,.2f} usados")
+        with cols_v[i]:
+            status_cor = "#22c55e" if pct >= 40 else ("#f59e0b" if pct >= 20 else "#ef4444")
+            st.markdown(f"""
+                <div class="vehicle-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span class="vehicle-plate">{placa}</span>
+                        <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600;">{row['marca']}</span>
+                    </div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: #ffffff; margin-bottom: 4px;">{row['modelo']}</div>
+                    <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 14px;">Condutor: <strong style="color: #cbd5e1;">{row['tecnico']}</strong></div>
+                    <div style="background: rgba(15, 23, 42, 0.6); padding: 10px 14px; border-radius: 10px; margin-bottom: 12px;">
+                        <div style="font-size: 0.75rem; color: #94a3b8;">Odômetro Atual</div>
+                        <div style="font-size: 1.1rem; font-weight: 700; color: #38bdf8;">{row['km_atual']:,} km</div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;">
+                        <span style="color: #94a3b8;">Saldo Cartão:</span>
+                        <strong style="color: {status_cor};">R$ {saldo:,.2f}</strong>
+                    </div>
+                </div>
+            """.replace(",", "."), unsafe_allow_html=True)
             st.progress(max(0.0, min(1.0, saldo / VALOR_CARGA_MENSAL)))
-            if pct < 20:
-                st.error(f"🚨 Alerta: Restam {pct:.1f}% da cota!")
-            elif pct < 40:
-                st.warning(f"⚠️ Atenção: {pct:.1f}% restante.")
-            else:
-                st.success(f"✅ Saldo confortável: {pct:.1f}%")
 
-    st.divider()
+    st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
 
-    # ---------------- TABELA DE CONTROLE DE QUILOMETRAGEM SEMANAL ----------------
-    st.subheader("📋 CONTROLE DE QUILOMETRAGEM SEMANAL")
-    st.caption("Histórico completo consolidado até à semana atual com rolagem vertical.")
+    # TABELA COM ROLAGEM VERTICAL
+    st.markdown("""
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
+            <div>
+                <h3 style="color: #f8fafc; font-weight: 700; margin: 0;">📋 Controle de Quilometragem Semanal</h3>
+                <p style="color: #94a3b8; font-size: 0.85rem; margin: 4px 0 0 0;">Histórico de rodagem completo integrado com a base de dados.</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
     if not df_consolidado.empty:
         st.dataframe(
@@ -238,13 +419,11 @@ if menu == "📈 Dashboard Geral & Consumos":
             hide_index=True
         )
     else:
-        st.info("Aguardando carregamento da base semanal.")
+        st.info("Nenhum dado encontrado para exibição.")
 
-# ----------------- 2. GESTÃO DA FROTA E VEÍCULOS (GESTOR) -----------------
+# ----------------- 2. GESTÃO DA FROTA (GESTOR) -----------------
 elif menu == "⚙️ Gestão da Frota & Veículos":
-    st.title("⚙️ Gestão da Frota (Editar e Trocar Veículos)")
-    st.info("Aqui você pode alterar placa, modelo, técnico responsável e odômetro dos veículos.")
-
+    st.markdown("<h1>⚙️ Gestão da Frota (Editar e Trocar Veículos)</h1>", unsafe_allow_html=True)
     df_v = carregar_veiculos()
     tab_edit, tab_novo = st.tabs(["✏️ Editar Veículo Existente", "➕ Adicionar Novo Veículo"])
     
@@ -268,7 +447,7 @@ elif menu == "⚙️ Gestão da Frota & Veículos":
                     nova_rev = st.number_input("Próxima Revisão (KM)", min_value=0, value=int(v_info["proxima_revisao"]))
                     ultima_rev = st.text_input("Última Revisão", value=v_info["ultima_revisao"])
 
-                salvar_edicao = st.form_submit_button("💾 Salvar Alterações do Veículo")
+                salvar_edicao = st.form_submit_button("💾 Salvar Alterações")
                 if salvar_edicao:
                     supabase.table("veiculos").update({
                         "modelo": novo_modelo,
@@ -293,7 +472,7 @@ elif menu == "⚙️ Gestão da Frota & Veículos":
                 cad_km = st.number_input("KM Inicial", min_value=0, value=0)
                 cad_rev = st.number_input("KM da 1ª Revisão", min_value=1000, value=10000)
 
-            cadastrar = st.form_submit_button("➕ Cadastrar Veículo na Frota")
+            cadastrar = st.form_submit_button("➕ Cadastrar Veículo")
             if cadastrar:
                 if not cad_placa:
                     st.error("Informe a placa do veículo.")
@@ -316,51 +495,48 @@ elif menu == "⚙️ Gestão da Frota & Veículos":
                     st.success(f"Veículo `{cad_placa}` adicionado com sucesso!")
                     st.rerun()
 
-# ----------------- 3. CANCELAR ÚLTIMOS LANÇAMENTOS (GESTOR) -----------------
+# ----------------- 3. CANCELAR LANÇAMENTOS (GESTOR) -----------------
 elif menu == "⏪ Cancelar Últimos Lançamentos":
-    st.title("⏪ Cancelar / Excluir Lançamentos Recentes")
-    st.caption("Acesso exclusivo de gestão para estornar erros de digitação ou testes.")
-
-    tab_abast, tab_km_canc = st.tabs(["⛽ Últimos 5 Abastecimentos", "🛣️ Últimos 5 Registros de KM"])
+    st.markdown("<h1>⏪ Cancelar / Excluir Lançamentos Recentes</h1>", unsafe_allow_html=True)
+    tab_abast, tab_km_canc = st.tabs(["⛽ Últimos Abastecimentos", "🛣️ Últimos Registros de KM"])
 
     with tab_abast:
         res_ab = supabase.table("abastecimentos").select("*").order("id", desc=True).limit(5).execute()
         if res_ab.data:
             for item in res_ab.data:
                 with st.expander(f"⛽ {item['data_abastecimento']} | Placa: {item['placa']} | R$ {float(item['valor_total']):,.2f} ({item['posto']})"):
-                    st.write(f"**Técnico:** {item['tecnico']} | **Litros:** {item['litros']}L | **KM no Abastecimento:** {item['km_atual']}")
-                    if st.button(f"🗑️ Excluir Abastecimento e Estornar R$ {float(item['valor_total']):,.2f}", key=f"del_ab_{item['id']}"):
+                    st.write(f"**Técnico:** {item['tecnico']} | **Litros:** {item['litros']}L | **KM:** {item['km_atual']}")
+                    if st.button(f"🗑️ Excluir e Estornar R$ {float(item['valor_total']):,.2f}", key=f"del_ab_{item['id']}"):
                         saldos = carregar_saldos(mes_ano_atual)
                         saldo_atual = saldos.get(item['placa'], VALOR_CARGA_MENSAL)
                         novo_saldo = min(VALOR_CARGA_MENSAL, saldo_atual + float(item['valor_total']))
                         
                         supabase.table("cartoes_saldo").update({"saldo_atual": novo_saldo}).eq("placa", item['placa']).eq("mes_ano", mes_ano_atual).execute()
                         supabase.table("abastecimentos").delete().eq("id", item['id']).execute()
-                        st.success(f"Abastecimento removido e R$ {float(item['valor_total']):,.2f} estornado para o cartão `{item['placa']}`!")
+                        st.success(f"Abastecimento removido e valor estornado!")
                         st.rerun()
         else:
-            st.info("Nenhum abastecimento registrado até ao momento.")
+            st.info("Nenhum abastecimento recente.")
 
     with tab_km_canc:
         res_k = supabase.table("registros_km").select("*").order("id", desc=True).limit(5).execute()
         if res_k.data:
             for item in res_k.data:
-                with st.expander(f"🛣️ {item['data_registro']} | Placa: {item['placa']} | Rodou: {item['km_percorrido']} km (Final: {item['km_final']} km)"):
-                    st.write(f"**Técnico:** {item['tecnico']} | **Rota:** {item['rota']} | **Obs:** {item.get('observacoes', '-')}")
-                    if st.button(f"🗑️ Excluir Lançamento de KM #{item['id']}", key=f"del_km_{item['id']}"):
+                with st.expander(f"🛣️ {item['data_registro']} | Placa: {item['placa']} | Rodou: {item['km_percorrido']} km (Final: {item['km_final']})"):
+                    st.write(f"**Técnico:** {item['tecnico']} | **Rota:** {item['rota']}")
+                    if st.button(f"🗑️ Excluir Registro #{item['id']}", key=f"del_km_{item['id']}"):
                         supabase.table("registros_km").delete().eq("id", item['id']).execute()
                         rest_max = supabase.table("registros_km").select("km_final").eq("placa", item['placa']).order("km_final", desc=True).limit(1).execute()
                         if rest_max.data:
-                            km_restaurado = rest_max.data[0]["km_final"]
-                            supabase.table("veiculos").update({"km_atual": km_restaurado}).eq("placa", item['placa']).execute()
-                        st.success("Lançamento de KM excluído com sucesso!")
+                            supabase.table("veiculos").update({"km_atual": rest_max.data[0]["km_final"]}).eq("placa", item['placa']).execute()
+                        st.success("Registro de KM excluído!")
                         st.rerun()
         else:
-            st.info("Nenhum registro de KM encontrado.")
+            st.info("Nenhum registro de KM recente.")
 
-# ----------------- 4. NOVO LANÇAMENTO DE KM (TÉCNICOS E GESTOR) -----------------
+# ----------------- 4. NOVO LANÇAMENTO (TÉCNICO / GESTOR) -----------------
 elif menu == "📱 Novo Lançamento (Técnico)":
-    st.header("📸 Registro de KM e Rota")
+    st.markdown("<h1>📸 Registro Diário de KM e Rota</h1>", unsafe_allow_html=True)
     df_v = carregar_veiculos()
 
     opcoes_veiculo = {f"{row['placa']} - {row['modelo']} ({row['tecnico']})": row['placa'] for _, row in df_v.iterrows()}
@@ -371,25 +547,29 @@ elif menu == "📱 Novo Lançamento (Técnico)":
     foto_painel = st.camera_input("Tirar foto do painel") or st.file_uploader("Enviar foto do odômetro", type=['jpg', 'jpeg', 'png'])
     km_detectado = 0
     if foto_painel:
-        with st.spinner("🤖 Lendo odômetro com Inteligência Artificial..."):
+        with st.spinner("🤖 Processando imagem com IA..."):
             dados = extrair_dados_imagem(foto_painel, prompt_tipo="hodometro")
             if dados and "km" in dados:
                 km_detectado = dados["km"]
-                st.success(f"KM identificado na foto: **{km_detectado} km**")
+                st.success(f"Quilometragem detectada: **{km_detectado} km**")
 
-    st.info(f"Último odômetro registrado para este veículo: **{veiculo_atual['km_atual']:,} km**".replace(",", "."))
+    st.markdown(f"""
+        <div style="background: rgba(56, 189, 248, 0.1); border-left: 4px solid #38bdf8; padding: 12px 16px; border-radius: 6px; margin: 15px 0;">
+            Odômetro anterior registrado: <strong>{veiculo_atual['km_atual']:,} km</strong>
+        </div>
+    """.replace(",", "."), unsafe_allow_html=True)
 
     with st.form("form_km"):
         data_registro = st.date_input("Data do Registro", datetime.date.today())
-        km_final = st.number_input("KM Atual / Final do Odômetro", min_value=int(veiculo_atual["km_atual"]), value=max(int(veiculo_atual["km_atual"]), int(km_detectado)))
-        rota = st.text_input("Destino / Rota / Chamado", placeholder="Ex: Atendimento PMVV - Centro de Operações")
+        km_final = st.number_input("KM Atual / Final do Painel", min_value=int(veiculo_atual["km_atual"]), value=max(int(veiculo_atual["km_atual"]), int(km_detectado)))
+        rota = st.text_input("Destino / Rota / Chamado", placeholder="Ex: Atendimento PMVV - Posto de Saúde")
         tecnico = st.text_input("Nome do Técnico", value=veiculo_atual["tecnico"])
         obs = st.text_area("Observações (opcional)")
 
-        salvar = st.form_submit_button("✅ Gravar no Banco de Dados")
+        salvar = st.form_submit_button("✅ Gravar Lançamento no Banco")
         if salvar:
             if km_final < veiculo_atual["km_atual"]:
-                st.error("Erro: O KM informado não pode ser menor que o odômetro atual do carro!")
+                st.error("Erro: O KM informado não pode ser menor que o odômetro anterior.")
             else:
                 supabase.table("registros_km").insert({
                     "data_registro": str(data_registro),
@@ -402,42 +582,43 @@ elif menu == "📱 Novo Lançamento (Técnico)":
                 }).execute()
 
                 supabase.table("veiculos").update({"km_atual": int(km_final)}).eq("placa", placa_sel).execute()
-                st.success(f"✅ Lançamento gravado com sucesso! Odômetro do {veiculo_atual['modelo']} atualizado para {km_final:,} km.".replace(",", "."))
+                st.success("Lançamento gravado com sucesso!")
                 st.rerun()
 
-# ----------------- 5. REGISTRAR ABASTECIMENTO (TÉCNICOS E GESTOR) -----------------
+# ----------------- 5. REGISTRAR ABASTECIMENTO (TÉCNICO / GESTOR) -----------------
 elif menu == "⛽ Registrar Abastecimento":
-    st.header("⛽ Registro de Abastecimento com Leitor de Cupom")
+    st.markdown("<h1>⛽ Registro de Abastecimento</h1>", unsafe_allow_html=True)
     df_v = carregar_veiculos()
     saldos = carregar_saldos(mes_ano_atual)
 
-    foto_cupom = st.camera_input("Tirar foto do cupom fiscal") or st.file_uploader("Enviar foto do comprovante", type=['jpg', 'jpeg', 'png'])
+    foto_cupom = st.camera_input("Tirar foto do cupom") or st.file_uploader("Enviar comprovante fiscal", type=['jpg', 'jpeg', 'png'])
     dados_iniciais = {"litros": 0.0, "valor_total": 0.0, "combustivel": "Etanol", "posto": ""}
     if foto_cupom:
-        with st.spinner("🤖 Extraindo dados do cupom fiscal..."):
+        with st.spinner("🤖 Lendo dados do cupom fiscal com IA..."):
             extraido = extrair_dados_imagem(foto_cupom, prompt_tipo="cupom")
             if extraido:
                 dados_iniciais.update(extraido)
-                st.success("Dados do cupom extraídos com sucesso!")
+                st.success("Cupom fiscal identificado com sucesso!")
 
     with st.form("form_abastecimento"):
         placa = st.selectbox("Placa do Veículo", df_v["placa"].tolist())
         saldo_disponivel = saldos.get(placa, VALOR_CARGA_MENSAL)
+        st.write(f"Saldo disponível neste cartão: **R$ {saldo_disponivel:,.2f}**")
 
         col1, col2 = st.columns(2)
         with col1:
-            km_abast = st.number_input("KM no Momento do Abastecimento", min_value=0)
+            km_abast = st.number_input("KM Atual do Veículo", min_value=0)
             litros = st.number_input("Litros Abastecidos", min_value=0.0, value=float(dados_iniciais.get("litros", 0.0)), step=0.1)
             valor_total = st.number_input("Valor Total Pago (R$)", min_value=0.0, value=float(dados_iniciais.get("valor_total", 0.0)), step=0.5)
         with col2:
-            combustivel = st.selectbox("Tipo de Combustível", ["Etanol", "Gasolina Comum", "Gasolina Aditivada"])
+            combustivel = st.selectbox("Combustível", ["Etanol", "Gasolina Comum", "Gasolina Aditivada"])
             posto = st.text_input("Posto de Combustível", value=dados_iniciais.get("posto", ""))
             tecnico = st.text_input("Técnico Responsável")
 
         gravar_abast = st.form_submit_button("💾 Salvar Abastecimento")
         if gravar_abast:
             if valor_total <= 0:
-                st.error("Informe um valor total válido para o abastecimento.")
+                st.error("Informe um valor válido.")
             else:
                 v_litro = (valor_total / litros) if litros > 0 else 0
                 supabase.table("abastecimentos").insert({
@@ -454,70 +635,72 @@ elif menu == "⛽ Registrar Abastecimento":
 
                 novo_saldo = max(0.0, saldo_disponivel - valor_total)
                 supabase.table("cartoes_saldo").update({"saldo_atual": novo_saldo}).eq("placa", placa).eq("mes_ano", mes_ano_atual).execute()
-                
-                st.success(f"✅ Abastecimento gravado com sucesso!")
+                st.success(f"Abastecimento salvo! Novo saldo: R$ {novo_saldo:,.2f}")
                 st.rerun()
 
 # ----------------- 6. HISTÓRICO DE KM (GESTOR) -----------------
 elif menu == "📊 Histórico de KM e Rotas":
-    st.header("📊 Painel Consolidado de KM e Rotas")
+    st.markdown("<h1>📊 Histórico Consolidado de KM</h1>", unsafe_allow_html=True)
     res = supabase.table("registros_km").select("*").order("created_at", desc=True).execute()
     df = pd.DataFrame(res.data)
     if not df.empty:
         st.dataframe(df, use_container_width=True)
     else:
-        st.info("Nenhum registro lançado ainda. Os novos registros aparecerão aqui em tempo real.")
+        st.info("Nenhum registro lançado ainda.")
 
 # ----------------- 7. ALERTAS DE REVISÃO (TODOS) -----------------
 elif menu == "🔧 Alertas de Revisão":
-    st.header("🔧 Status de Manutenção e Revisões Preventivas")
+    st.markdown("<h1>🔧 Monitor de Manutenção Preventiva</h1>", unsafe_allow_html=True)
     df_v = carregar_veiculos()
     cols = st.columns(len(df_v)) if len(df_v) > 0 else [st.container()]
     for i, row in df_v.iterrows():
         km_restante = row["proxima_revisao"] - row["km_atual"]
         with cols[i]:
             if km_restante > 1000:
-                st.success(
-                    f"✅ **{row['modelo']} (`{row['placa']}`)**\n\n"
-                    f"* **KM Atual:** {row['km_atual']:,} km\n".replace(",", ".") +
-                    f"* **Última Revisão:** {row['ultima_revisao']}\n"
-                    f"* **Próxima Revisão:** {row['proxima_revisao']:,} km\n".replace(",", ".") +
-                    f"* **Margem Restante:** {km_restante:,} km\n".replace(",", ".") +
-                    f"* **Status:** Em dia"
-                )
+                st.markdown(f"""
+                    <div class="vehicle-card" style="border-left: 4px solid #22c55e;">
+                        <span class="vehicle-plate">{row['placa']}</span>
+                        <h4 style="margin: 10px 0 4px 0; color: #fff;">{row['modelo']}</h4>
+                        <p style="color: #94a3b8; font-size: 0.85rem; margin: 0 0 10px 0;">Última Revisão: {row['ultima_revisao']}</p>
+                        <div style="font-size: 0.85rem; color: #cbd5e1;">KM Atual: <strong>{row['km_atual']:,} km</strong></div>
+                        <div style="font-size: 0.85rem; color: #cbd5e1;">Próxima: <strong>{row['proxima_revisao']:,} km</strong></div>
+                        <div style="margin-top: 10px;"><span class="metric-badge badge-green">✓ Em dia ({km_restante:,} km restantes)</span></div>
+                    </div>
+                """.replace(",", "."), unsafe_allow_html=True)
             elif km_restante >= 0:
-                st.warning(
-                    f"⚠️ **{row['modelo']} (`{row['placa']}`)**\n\n"
-                    f"* **KM Atual:** {row['km_atual']:,} km\n".replace(",", ".") +
-                    f"* **Próxima Revisão:** {row['proxima_revisao']:,} km\n".replace(",", ".") +
-                    f"* **Margem Restante:** {km_restante:,} km\n".replace(",", ".") +
-                    f"* **Status:** Agendar Revisão (Próxima)"
-                )
+                st.markdown(f"""
+                    <div class="vehicle-card" style="border-left: 4px solid #f59e0b;">
+                        <span class="vehicle-plate">{row['placa']}</span>
+                        <h4 style="margin: 10px 0 4px 0; color: #fff;">{row['modelo']}</h4>
+                        <div style="font-size: 0.85rem; color: #cbd5e1;">KM Atual: <strong>{row['km_atual']:,} km</strong></div>
+                        <div style="font-size: 0.85rem; color: #cbd5e1;">Próxima: <strong>{row['proxima_revisao']:,} km</strong></div>
+                        <div style="margin-top: 10px;"><span class="metric-badge badge-amber">⚠️ Agendar Revisão ({km_restante:,} km restantes)</span></div>
+                    </div>
+                """.replace(",", "."), unsafe_allow_html=True)
             else:
-                st.error(
-                    f"🚨 **{row['modelo']} (`{row['placa']}`)**\n\n"
-                    f"* **KM Atual:** {row['km_atual']:,} km\n".replace(",", ".") +
-                    f"* **Excedido:** {abs(km_restante):,} km\n".replace(",", ".") +
-                    f"* **Status:** VENCIDA (Agendar Urgente)"
-                )
+                st.markdown(f"""
+                    <div class="vehicle-card" style="border-left: 4px solid #ef4444;">
+                        <span class="vehicle-plate">{row['placa']}</span>
+                        <h4 style="margin: 10px 0 4px 0; color: #fff;">{row['modelo']}</h4>
+                        <div style="font-size: 0.85rem; color: #cbd5e1;">KM Atual: <strong>{row['km_atual']:,} km</strong></div>
+                        <div style="font-size: 0.85rem; color: #cbd5e1;">Próxima: <strong>{row['proxima_revisao']:,} km</strong></div>
+                        <div style="margin-top: 10px;"><span class="metric-badge" style="background: rgba(239,68,68,0.2); color: #f87171;">🚨 VENCIDA ({abs(km_restante):,} km excedidos)</span></div>
+                    </div>
+                """.replace(",", "."), unsafe_allow_html=True)
 
-# ----------------- 8. EXPORTAR PARA EXCEL COMPLETO (GESTOR) -----------------
+# ----------------- 8. EXPORTAR PARA EXCEL (GESTOR) -----------------
 elif menu == "📥 Exportar para Excel":
-    st.header("📊 Exportação de Dados para o Microsoft Office 365")
-    st.write("Gere a planilha consolidada contendo os veículos, o histórico semanal completo até outubro e todos os novos lançamentos.")
+    st.markdown("<h1>📥 Exportação Consolidada de Relatórios</h1>", unsafe_allow_html=True)
+    st.caption("Gere a planilha compatível com Microsoft Excel e Office 365 contendo a base completa até a semana atual.")
 
     df_v = carregar_veiculos()
     df_excel_km, _ = carregar_historico_excel()
     res_km = supabase.table("registros_km").select("*").execute()
     res_ab = supabase.table("abastecimentos").select("*").execute()
 
-    # Consolidar todas as semanas para o relatório
     linhas_relatorio = []
-    if not res_km.data:
-        df_novos_km = pd.DataFrame()
-    else:
-        df_novos_km = pd.DataFrame(res_km.data)
-        for _, r in df_novos_km.iterrows():
+    if res_km.data:
+        for r in res_km.data:
             d_dt = pd.to_datetime(r["data_registro"])
             linhas_relatorio.append({
                 "Placa": r["placa"],
