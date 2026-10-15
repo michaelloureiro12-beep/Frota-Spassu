@@ -108,14 +108,15 @@ elif senha_gestor:
 menu = st.sidebar.radio("Navegação", menu_opcoes)
 
 # ----------------- 1. DASHBOARD GERAL (GESTOR) -----------------
-if menu == "📈 Dashboard Geral & Consumos":
+elif menu == "📈 Dashboard Geral & Consumos":
     st.title("📈 Dashboard Geral de Gestão da Frota")
-    st.caption("Visão macro de odômetro, rodagem e saldos dos cartões.")
+    st.caption("Visão macro de odómetro, rodagem, saldos dos cartões e histórico semanal.")
 
     df_v = carregar_veiculos()
     saldos = carregar_saldos(mes_ano_atual)
 
-    res_km = supabase.table("registros_km").select("*").execute()
+    # Obter dados de KM da base de dados
+    res_km = supabase.table("registros_km").select("*").order("data_registro", desc=True).execute()
     df_km = pd.DataFrame(res_km.data)
     
     total_km_frota = df_v["km_atual"].sum() if not df_v.empty else 0
@@ -128,14 +129,16 @@ if menu == "📈 Dashboard Geral & Consumos":
         df_mes = df_km[df_km["data_registro"].dt.strftime("%Y-%m") == mes_ano_atual]
         km_mes = df_mes["km_percorrido"].sum() if not df_mes.empty else 0
 
+    # Cartões de Métricas no Topo
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Odômetro Geral", f"{total_km_frota:,} km".replace(",", "."), "Total Frota")
+    col1.metric("Odómetro Geral", f"{total_km_frota:,} km".replace(",", "."), "Total Frota")
     col2.metric("KM Percorrido no Mês", f"{km_mes:,} km".replace(",", "."), f"Ref: {mes_ano_atual}")
     col3.metric("Gasto Cartões (Mês)", f"R$ {gasto_total_mes:,.2f}", f"Teto: R$ {VALOR_CARGA_MENSAL * len(df_v):,.2f}")
     col4.metric("Saldo Restante (Frota)", f"R$ {saldo_total_cartoes:,.2f}", f"{(saldo_total_cartoes/(VALOR_CARGA_MENSAL*len(df_v)))*100:.1f}% restante")
 
     st.divider()
 
+    # Monitor dos Cartões
     st.subheader(f"💳 Monitor de Cartões de Abastecimento ({mes_ano_atual})")
     cols_card = st.columns(len(df_v) if len(df_v) > 0 else 1)
     for i, row in df_v.iterrows():
@@ -157,6 +160,43 @@ if menu == "📈 Dashboard Geral & Consumos":
             else:
                 st.success(f"✅ Saldo confortável: {pct:.1f}%")
 
+    st.divider()
+
+    # ---------------- TABELA DE CONTROLO SEMANAL COM ROLAGEM VERTICAL ----------------
+    st.subheader("📋 Controlo Semanal de KM e Rotas")
+    st.caption("Registo detalhado de rodagem por período com rolagem vertical.")
+
+    if not df_km.empty:
+        # Formatação das colunas para apresentação
+        df_exibir = df_km.copy()
+        df_exibir["Data"] = pd.to_datetime(df_exibir["data_registro"]).dt.strftime("%d/%m/%Y")
+        df_exibir["Semana"] = pd.to_datetime(df_exibir["data_registro"]).dt.isocalendar().week
+        
+        # Mapeamento e seleção dos campos essenciais
+        colunas_ordem = {
+            "Semana": "Semana",
+            "Data": "Data",
+            "placa": "Placa",
+            "km_inicial": "KM Inicial",
+            "km_final": "KM Final",
+            "km_percorrido": "KM Rodado",
+            "tecnico": "Técnico Responsável",
+            "rota": "Rota / Destino",
+            "observacoes": "Observações"
+        }
+        
+        colunas_existentes = [c for c in colunas_ordem.keys() if c in df_exibir.columns]
+        df_tabela = df_exibir[colunas_existentes].rename(columns=colunas_ordem)
+
+        # Apresentação em tabela com altura fixa para rolagem vertical
+        st.dataframe(
+            df_tabela,
+            use_container_width=True,
+            height=380,
+            hide_index=True
+        )
+    else:
+        st.info("Ainda não existem registos de KM lançados para exibir na tabela semanal.")
 # ----------------- 2. GESTÃO DA FROTA E VEÍCULOS (GESTOR) -----------------
 elif menu == "⚙️ Gestão da Frota & Veículos":
     st.title("⚙️ Gestão da Frota (Editar e Trocar Veículos)")
