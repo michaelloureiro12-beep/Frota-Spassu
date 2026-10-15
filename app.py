@@ -108,7 +108,7 @@ elif senha_gestor:
 menu = st.sidebar.radio("Navegação", menu_opcoes)
 
 # ----------------- 1. DASHBOARD GERAL (GESTOR) -----------------
-elif menu == "📈 Dashboard Geral & Consumos":
+if menu == "📈 Dashboard Geral & Consumos":
     st.title("📈 Dashboard Geral de Gestão da Frota")
     st.caption("Visão macro de odómetro, rodagem, saldos dos cartões e histórico semanal.")
 
