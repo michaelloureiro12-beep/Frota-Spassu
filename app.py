@@ -11,7 +11,7 @@ from supabase import create_client, Client
 
 # Configuração da Página
 st.set_page_config(
-    page_title="Frota Spassu - PMVV / PMCI",
+    page_title="Frota Spassu - PMVV",
     page_icon="🚗",
     layout="wide",
     initial_sidebar_state="expanded"
