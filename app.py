@@ -283,7 +283,7 @@ with st.sidebar:
                 </div>
                 <div>
                     <h2 style="margin: 0; color: #f8fafc; font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em;">SPASSU FROTA</h2>
-                    <span style="display: inline-block; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 0.68rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-top: 2px;">PMVV & PMCI</span>
+                    <span style="display: inline-block; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 0.68rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-top: 2px;">PMVV</span>
                 </div>
             </div>
         </div>
