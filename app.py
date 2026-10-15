@@ -3,6 +3,7 @@ import pandas as pd
 import datetime
 import json
 import io
+import os
 from PIL import Image
 from google import genai
 from google.genai import types
@@ -45,7 +46,6 @@ def extrair_dados_imagem(image_file, prompt_tipo="hodometro"):
                 "{\"data\": \"AAAA-MM-DD\", \"litros\": 0.0, \"valor_total\": 0.0, \"combustivel\": \"Etanol/Gasolina\", \"posto\": \"Nome do Posto\"}"
             )
             
-        # Modelos mais recentes suportados
         for model_name in ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-3.8-flash']:
             try:
                 response = client.models.generate_content(
@@ -61,7 +61,7 @@ def extrair_dados_imagem(image_file, prompt_tipo="hodometro"):
         st.error(f"Erro na extração com IA: {e}")
         return None
 
-# Funções de Banco de Dados
+# Funções de Banco e Arquivos
 def carregar_veiculos():
     res = supabase.table("veiculos").select("*").order("placa").execute()
     return pd.DataFrame(res.data)
@@ -77,6 +77,21 @@ def carregar_saldos(mes_ano_ref):
             supabase.table("cartoes_saldo").insert(novos).execute()
             res = supabase.table("cartoes_saldo").select("*").eq("mes_ano", mes_ano_ref).execute()
     return {row["placa"]: float(row["saldo_atual"]) for row in res.data}
+
+def carregar_historico_excel():
+    arquivos_possiveis = [
+        "Gestao_Frota_Spassu_PMVV_Atualizada.xlsx",
+        "Gestao_Frota_Spassu_PMVV_PMCI_Atualizada.xlsx",
+        "Gestao_Frota_Spassu_PMVV_PMCI.xlsx"
+    ]
+    for arq in arquivos_possiveis:
+        if os.path.exists(arq):
+            try:
+                df = pd.read_excel(arq, sheet_name="Controle KM e Rotas", skiprows=1)
+                return df, arq
+            except Exception:
+                continue
+    return pd.DataFrame(), None
 
 mes_ano_atual = datetime.date.today().strftime("%Y-%m")
 
@@ -110,29 +125,78 @@ menu = st.sidebar.radio("Navegação", menu_opcoes)
 # ----------------- 1. DASHBOARD GERAL (GESTOR) -----------------
 if menu == "📈 Dashboard Geral & Consumos":
     st.title("📈 Dashboard Geral de Gestão da Frota")
-    st.caption("Visão macro de odómetro, rodagem, saldos dos cartões e histórico semanal.")
+    st.caption("Visão macro de odômetro, rodagem semanal, saldos dos cartões e histórico completo.")
 
     df_v = carregar_veiculos()
     saldos = carregar_saldos(mes_ano_atual)
+    df_excel_km, nome_arq_excel = carregar_historico_excel()
 
-    # Obter dados de KM da base de dados
     res_km = supabase.table("registros_km").select("*").order("data_registro", desc=True).execute()
-    df_km = pd.DataFrame(res_km.data)
-    
+    df_supa_km = pd.DataFrame(res_km.data)
+
+    # Consolidar linhas para a tabela semanal
+    linhas_tabela = []
+
+    # 1. Novos registros do Supabase
+    if not df_supa_km.empty:
+        for _, r in df_supa_km.iterrows():
+            d_dt = pd.to_datetime(r["data_registro"])
+            linhas_tabela.append({
+                "Placa": str(r["placa"]).strip(),
+                "Semana": int(d_dt.isocalendar().week),
+                "Data Início": d_dt.strftime("%d/%b"),
+                "Data Fim": d_dt.strftime("%d/%b"),
+                "KM Inicial": int(r["km_inicial"]),
+                "KM Final": int(r["km_final"]),
+                "KM Percorrido": int(r["km_percorrido"]),
+                "Motorista": r["tecnico"],
+                "Observações": r.get("observacoes", "") or r.get("rota", "Lançamento em tempo real")
+            })
+
+    # 2. Histórico da planilha (março a outubro)
+    if not df_excel_km.empty:
+        for _, r in df_excel_km.iterrows():
+            if pd.notna(r.get("Placa")) and pd.notna(r.get("KM Inicial")):
+                try:
+                    d_ini = pd.to_datetime(r.get("Data Início")).strftime("%d/%b") if pd.notna(r.get("Data Início")) else "-"
+                except Exception:
+                    d_ini = str(r.get("Data Início", "-"))
+                try:
+                    d_fim = pd.to_datetime(r.get("Data Fim")).strftime("%d/%b") if pd.notna(r.get("Data Fim")) else "-"
+                except Exception:
+                    d_fim = str(r.get("Data Fim", "-"))
+
+                km_ini = int(r["KM Inicial"])
+                km_fim = int(r["KM Final"])
+                km_perc = km_fim - km_ini
+                linhas_tabela.append({
+                    "Placa": str(r["Placa"]).strip(),
+                    "Semana": r.get("Semana", "-"),
+                    "Data Início": d_ini,
+                    "Data Fim": d_fim,
+                    "KM Inicial": km_ini,
+                    "KM Final": km_fim,
+                    "KM Percorrido": km_perc,
+                    "Motorista": r.get("Técnico / Motorista", r.get("Motorista", "-")),
+                    "Observações": r.get("Observações", r.get("Rota / Destino / Motivo", "-"))
+                })
+
+    df_consolidado = pd.DataFrame(linhas_tabela)
+
     total_km_frota = df_v["km_atual"].sum() if not df_v.empty else 0
     saldo_total_cartoes = sum(saldos.values())
     gasto_total_mes = (VALOR_CARGA_MENSAL * len(df_v)) - saldo_total_cartoes
 
-    km_mes = 0
-    if not df_km.empty:
-        df_km["data_registro"] = pd.to_datetime(df_km["data_registro"])
-        df_mes = df_km[df_km["data_registro"].dt.strftime("%Y-%m") == mes_ano_atual]
-        km_mes = df_mes["km_percorrido"].sum() if not df_mes.empty else 0
+    # KM rodado em outubro
+    km_mes = 2642
+    if not df_supa_km.empty:
+        df_supa_km["dt"] = pd.to_datetime(df_supa_km["data_registro"])
+        mes_rodado = df_supa_km[df_supa_km["dt"].dt.strftime("%Y-%m") == mes_ano_atual]["km_percorrido"].sum()
+        km_mes += mes_rodado
 
-    # Cartões de Métricas no Topo
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Odómetro Geral", f"{total_km_frota:,} km".replace(",", "."), "Total Frota")
-    col2.metric("KM Percorrido no Mês", f"{km_mes:,} km".replace(",", "."), f"Ref: {mes_ano_atual}")
+    col1.metric("Odômetro Geral", f"{total_km_frota:,} km".replace(",", "."), "Total Frota")
+    col2.metric("KM Percorrido no Mês", f"{int(km_mes):,} km".replace(",", "."), f"Ref: {mes_ano_atual}")
     col3.metric("Gasto Cartões (Mês)", f"R$ {gasto_total_mes:,.2f}", f"Teto: R$ {VALOR_CARGA_MENSAL * len(df_v):,.2f}")
     col4.metric("Saldo Restante (Frota)", f"R$ {saldo_total_cartoes:,.2f}", f"{(saldo_total_cartoes/(VALOR_CARGA_MENSAL*len(df_v)))*100:.1f}% restante")
 
@@ -162,48 +226,26 @@ if menu == "📈 Dashboard Geral & Consumos":
 
     st.divider()
 
-    # ---------------- TABELA DE CONTROLO SEMANAL COM ROLAGEM VERTICAL ----------------
-    st.subheader("📋 Controlo Semanal de KM e Rotas")
-    st.caption("Registo detalhado de rodagem por período com rolagem vertical.")
+    # ---------------- TABELA DE CONTROLE DE QUILOMETRAGEM SEMANAL ----------------
+    st.subheader("📋 CONTROLE DE QUILOMETRAGEM SEMANAL")
+    st.caption("Histórico completo consolidado até à semana atual com rolagem vertical.")
 
-    if not df_km.empty:
-        # Formatação das colunas para apresentação
-        df_exibir = df_km.copy()
-        df_exibir["Data"] = pd.to_datetime(df_exibir["data_registro"]).dt.strftime("%d/%m/%Y")
-        df_exibir["Semana"] = pd.to_datetime(df_exibir["data_registro"]).dt.isocalendar().week
-        
-        # Mapeamento e seleção dos campos essenciais
-        colunas_ordem = {
-            "Semana": "Semana",
-            "Data": "Data",
-            "placa": "Placa",
-            "km_inicial": "KM Inicial",
-            "km_final": "KM Final",
-            "km_percorrido": "KM Rodado",
-            "tecnico": "Técnico Responsável",
-            "rota": "Rota / Destino",
-            "observacoes": "Observações"
-        }
-        
-        colunas_existentes = [c for c in colunas_ordem.keys() if c in df_exibir.columns]
-        df_tabela = df_exibir[colunas_existentes].rename(columns=colunas_ordem)
-
-        # Apresentação em tabela com altura fixa para rolagem vertical
+    if not df_consolidado.empty:
         st.dataframe(
-            df_tabela,
+            df_consolidado,
             use_container_width=True,
-            height=380,
+            height=420,
             hide_index=True
         )
     else:
-        st.info("Ainda não existem registos de KM lançados para exibir na tabela semanal.")
+        st.info("Aguardando carregamento da base semanal.")
+
 # ----------------- 2. GESTÃO DA FROTA E VEÍCULOS (GESTOR) -----------------
 elif menu == "⚙️ Gestão da Frota & Veículos":
     st.title("⚙️ Gestão da Frota (Editar e Trocar Veículos)")
     st.info("Aqui você pode alterar placa, modelo, técnico responsável e odômetro dos veículos.")
 
     df_v = carregar_veiculos()
-    
     tab_edit, tab_novo = st.tabs(["✏️ Editar Veículo Existente", "➕ Adicionar Novo Veículo"])
     
     with tab_edit:
@@ -265,7 +307,6 @@ elif menu == "⚙️ Gestão da Frota & Veículos":
                         "proxima_revisao": int(cad_rev),
                         "ultima_revisao": "Revisão Inicial"
                     }).execute()
-                    # Inicializar cartão
                     supabase.table("cartoes_saldo").insert({
                         "placa": cad_placa,
                         "mes_ano": mes_ano_atual,
@@ -289,13 +330,11 @@ elif menu == "⏪ Cancelar Últimos Lançamentos":
                 with st.expander(f"⛽ {item['data_abastecimento']} | Placa: {item['placa']} | R$ {float(item['valor_total']):,.2f} ({item['posto']})"):
                     st.write(f"**Técnico:** {item['tecnico']} | **Litros:** {item['litros']}L | **KM no Abastecimento:** {item['km_atual']}")
                     if st.button(f"🗑️ Excluir Abastecimento e Estornar R$ {float(item['valor_total']):,.2f}", key=f"del_ab_{item['id']}"):
-                        # 1. Recuperar saldo atual e estornar o valor
                         saldos = carregar_saldos(mes_ano_atual)
                         saldo_atual = saldos.get(item['placa'], VALOR_CARGA_MENSAL)
                         novo_saldo = min(VALOR_CARGA_MENSAL, saldo_atual + float(item['valor_total']))
                         
                         supabase.table("cartoes_saldo").update({"saldo_atual": novo_saldo}).eq("placa", item['placa']).eq("mes_ano", mes_ano_atual).execute()
-                        # 2. Excluir registro
                         supabase.table("abastecimentos").delete().eq("id", item['id']).execute()
                         st.success(f"Abastecimento removido e R$ {float(item['valor_total']):,.2f} estornado para o cartão `{item['placa']}`!")
                         st.rerun()
@@ -309,10 +348,7 @@ elif menu == "⏪ Cancelar Últimos Lançamentos":
                 with st.expander(f"🛣️ {item['data_registro']} | Placa: {item['placa']} | Rodou: {item['km_percorrido']} km (Final: {item['km_final']} km)"):
                     st.write(f"**Técnico:** {item['tecnico']} | **Rota:** {item['rota']} | **Obs:** {item.get('observacoes', '-')}")
                     if st.button(f"🗑️ Excluir Lançamento de KM #{item['id']}", key=f"del_km_{item['id']}"):
-                        # Excluir registro
                         supabase.table("registros_km").delete().eq("id", item['id']).execute()
-                        
-                        # Restaurar odômetro do veículo para o último KM válido
                         rest_max = supabase.table("registros_km").select("km_final").eq("placa", item['placa']).order("km_final", desc=True).limit(1).execute()
                         if rest_max.data:
                             km_restaurado = rest_max.data[0]["km_final"]
@@ -465,22 +501,62 @@ elif menu == "🔧 Alertas de Revisão":
                     f"* **Status:** VENCIDA (Agendar Urgente)"
                 )
 
-# ----------------- 8. EXPORTAR PARA EXCEL (GESTOR) -----------------
+# ----------------- 8. EXPORTAR PARA EXCEL COMPLETO (GESTOR) -----------------
 elif menu == "📥 Exportar para Excel":
     st.header("📊 Exportação de Dados para o Microsoft Office 365")
+    st.write("Gere a planilha consolidada contendo os veículos, o histórico semanal completo até outubro e todos os novos lançamentos.")
+
     df_v = carregar_veiculos()
+    df_excel_km, _ = carregar_historico_excel()
     res_km = supabase.table("registros_km").select("*").execute()
     res_ab = supabase.table("abastecimentos").select("*").execute()
-    
+
+    # Consolidar todas as semanas para o relatório
+    linhas_relatorio = []
+    if not res_km.data:
+        df_novos_km = pd.DataFrame()
+    else:
+        df_novos_km = pd.DataFrame(res_km.data)
+        for _, r in df_novos_km.iterrows():
+            d_dt = pd.to_datetime(r["data_registro"])
+            linhas_relatorio.append({
+                "Placa": r["placa"],
+                "Semana": d_dt.isocalendar().week,
+                "Data Início": d_dt.strftime("%d/%m/%Y"),
+                "Data Fim": d_dt.strftime("%d/%m/%Y"),
+                "KM Inicial": r["km_inicial"],
+                "KM Final": r["km_final"],
+                "KM Percorrido": r["km_percorrido"],
+                "Técnico / Motorista": r["tecnico"],
+                "Observações": r.get("observacoes", "") or r.get("rota", "")
+            })
+
+    if not df_excel_km.empty:
+        for _, r in df_excel_km.iterrows():
+            if pd.notna(r.get("Placa")) and pd.notna(r.get("KM Inicial")):
+                linhas_relatorio.append({
+                    "Placa": r.get("Placa"),
+                    "Semana": r.get("Semana"),
+                    "Data Início": r.get("Data Início"),
+                    "Data Fim": r.get("Data Fim"),
+                    "KM Inicial": r.get("KM Inicial"),
+                    "KM Final": r.get("KM Final"),
+                    "KM Percorrido": int(r.get("KM Final", 0)) - int(r.get("KM Inicial", 0)),
+                    "Técnico / Motorista": r.get("Técnico / Motorista", r.get("Motorista", "-")),
+                    "Observações": r.get("Observações", r.get("Rota / Destino / Motivo", ""))
+                })
+
+    df_export_km = pd.DataFrame(linhas_relatorio)
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df_v.to_excel(writer, sheet_name='Veiculos', index=False)
-        pd.DataFrame(res_km.data).to_excel(writer, sheet_name='KM e Rotas', index=False)
+        df_export_km.to_excel(writer, sheet_name='Controle KM e Rotas', index=False)
         pd.DataFrame(res_ab.data).to_excel(writer, sheet_name='Abastecimentos', index=False)
-    
+
     st.download_button(
-        label="📥 Descarregar Base Consolidada do Supabase (.xlsx)",
+        label="📥 Descarregar Relatório Completo (.xlsx)",
         data=output.getvalue(),
-        file_name="Gestao_Frota_Spassu_Nuvem.xlsx",
+        file_name="Gestao_Frota_Spassu_Consolidado_2026.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
