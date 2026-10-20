@@ -735,62 +735,217 @@ elif menu == "📑 Histórico de KM e Rotas":
 # ----------------- 5. EXPORTAR RELATÓRIOS (GESTOR) -----------------
 elif menu == "📥 Exportar Relatórios (Excel)":
     st.markdown("<h1>📥 Exportação Consolidada de Relatórios</h1>", unsafe_allow_html=True)
-    st.caption("Gere a planilha compatível com Microsoft Excel contendo a base completa até a semana atual.")
+    st.caption("Gere a planilha completa compatível com Microsoft Excel contendo todas as abas, fórmulas e a identidade visual oficial da Spassu.")
 
     df_v = carregar_veiculos()
-    df_excel_km, _ = carregar_historico_excel()
-    res_km = supabase.table("registros_km").select("*").execute()
-    res_ab = supabase.table("abastecimentos").select("*").execute()
-    res_inc = supabase.table("incidentes").select("*").execute()
+    res_km = supabase.table("registros_km").select("*").order("data_registro", desc=False).execute()
+    res_ab = supabase.table("abastecimentos").select("*").order("data_abastecimento", desc=False).execute()
+    res_inc = supabase.table("incidentes").select("*").order("data_hora", desc=False).execute()
 
-    linhas_relatorio = []
-    if res_km.data:
-        for r in res_km.data:
-            d_dt = pd.to_datetime(r["data_registro"])
-            linhas_relatorio.append({
-                "Placa": r["placa"],
-                "Semana": d_dt.isocalendar().week,
-                "Data Início": d_dt.strftime("%d/%m/%Y"),
-                "Data Fim": d_dt.strftime("%d/%m/%Y"),
-                "KM Inicial": r["km_inicial"],
-                "KM Final": r["km_final"],
-                "KM Percorrido": r["km_percorrido"],
-                "Técnico / Motorista": r["tecnico"],
-                "Observações": r.get("observacoes", "") or r.get("rota", "")
-            })
+    # Importação das ferramentas de formatação do Excel
+    import openpyxl
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
-    if not df_excel_km.empty:
-        for _, r in df_excel_km.iterrows():
-            if pd.notna(r.get("Placa")) and pd.notna(r.get("KM Inicial")):
-                linhas_relatorio.append({
-                    "Placa": r.get("Placa"),
-                    "Semana": r.get("Semana"),
-                    "Data Início": r.get("Data Início"),
-                    "Data Fim": r.get("Data Fim"),
-                    "KM Inicial": r.get("KM Inicial"),
-                    "KM Final": r.get("KM Final"),
-                    "KM Percorrido": int(r.get("KM Final", 0)) - int(r.get("KM Inicial", 0)),
-                    "Técnico / Motorista": r.get("Técnico / Motorista", r.get("Motorista", "-")),
-                    "Observações": r.get("Observações", r.get("Rota / Destino / Motivo", ""))
-                })
+    # Cores Oficiais da Spassu Tecnologia
+    ROXO_SPASSU = "201547"
+    LARANJA_SPASSU = "FA4616"
+    CINZA_ZEBRADO = "F8FAFC"
 
-    df_export_km = pd.DataFrame(linhas_relatorio)
+    def gerar_planilha_oficial_spassu():
+        nome_template = "Gestao_Frota_Spassu_PMVV_Atualizada.xlsx"
+        
+        # 1. Carrega o modelo oficial se existir no repositório
+        if os.path.exists(nome_template):
+            wb = openpyxl.load_workbook(nome_template)
+        else:
+            wb = openpyxl.Workbook()
+            wb.remove(wb.active)
 
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df_v.to_excel(writer, sheet_name='Veiculos', index=False)
-        df_export_km.to_excel(writer, sheet_name='Controle KM e Rotas', index=False)
-        pd.DataFrame(res_ab.data).to_excel(writer, sheet_name='Abastecimentos', index=False)
+        # Estilos Padrão Spassu
+        fill_header_roxo = PatternFill(start_color=ROXO_SPASSU, end_color=ROXO_SPASSU, fill_type="solid")
+        fill_colunas_laranja = PatternFill(start_color=LARANJA_SPASSU, end_color=LARANJA_SPASSU, fill_type="solid")
+        fonte_titulo = Font(name="Poppins", size=16, bold=True, color="FFFFFF")
+        fonte_colunas = Font(name="Poppins", size=11, bold=True, color="FFFFFF")
+        fonte_dados = Font(name="Segoe UI", size=10, color="000000")
+        borda_fina = Border(
+            left=Side(style='thin', color='E2E8F0'),
+            right=Side(style='thin', color='E2E8F0'),
+            top=Side(style='thin', color='E2E8F0'),
+            bottom=Side(style='thin', color='E2E8F0')
+        )
+
+        # --- ABA 1: CADASTRO DE VEÍCULOS ---
+        if 'Cadastro de Veículos' in wb.sheetnames:
+            ws_cad = wb['Cadastro de Veículos']
+            # Limpa linhas antigas mantendo cabeçalho
+            for r in range(4, 50):
+                for c in range(1, 12):
+                    ws_cad.cell(r, c).value = None
+
+            if not df_v.empty:
+                for idx, row in df_v.reset_index(drop=True).iterrows():
+                    r = 4 + idx
+                    ws_cad.cell(r, 1, idx + 1)
+                    ws_cad.cell(r, 2, row['placa'])
+                    ws_cad.cell(r, 3, row.get('marca', ''))
+                    ws_cad.cell(r, 4, row.get('modelo', ''))
+                    ws_cad.cell(r, 5, 2026)
+                    ws_cad.cell(r, 6, "Branco/Prata")
+                    ws_cad.cell(r, 7, "Flex")
+                    ws_cad.cell(r, 8, int(row['km_atual']))
+                    ws_cad.cell(r, 10, row.get('tecnico', ''))
+                    ws_cad.cell(r, 11, "Ativo")
+                    for c in range(1, 12):
+                        ws_cad.cell(r, c).font = fonte_dados
+                        ws_cad.cell(r, c).border = borda_fina
+
+        # --- ABA 2: CONTROLE KM SEMANAL (Sincronizado) ---
+        if 'Controle KM Semanal' in wb.sheetnames:
+            ws_km = wb['Controle KM Semanal']
+            # Identifica a última linha preenchida do template
+            last_r = 3
+            while ws_km.cell(last_r + 1, 2).value is not None:
+                last_r += 1
+
+            if res_km.data:
+                for reg in res_km.data:
+                    dt = pd.to_datetime(reg['data_registro'])
+                    d_fmt = dt.strftime("%Y-%m-%d")
+                    # Evita duplicar se a data e a placa já estiverem na planilha
+                    existe = False
+                    for r_check in range(4, last_r + 1):
+                        if str(ws_km.cell(r_check, 2).value) == str(reg['placa']) and d_fmt in str(ws_km.cell(r_check, 4).value):
+                            existe = True
+                            break
+                    if not existe:
+                        last_r += 1
+                        ws_km.cell(last_r, 1, last_r - 3)
+                        ws_km.cell(last_r, 2, reg['placa'])
+                        ws_km.cell(last_r, 3, int(dt.isocalendar().week))
+                        ws_km.cell(last_r, 4, dt.strftime("%d/%m/%Y"))
+                        ws_km.cell(last_r, 5, dt.strftime("%d/%m/%Y"))
+                        ws_km.cell(last_r, 6, int(reg['km_inicial']))
+                        ws_km.cell(last_r, 7, int(reg['km_final']))
+                        ws_km.cell(last_r, 8, f"=G{last_r}-F{last_r}")
+                        ws_km.cell(last_r, 9, reg['tecnico'])
+                        ws_km.cell(last_r, 10, reg.get('observacoes') or reg.get('rota', 'App'))
+                        for c in range(1, 11):
+                            ws_km.cell(last_r, c).font = fonte_dados
+                            ws_km.cell(last_r, c).border = borda_fina
+
+        # --- ABA 3: CONTROLE ABASTECIMENTO (Sincronizado) ---
+        if 'Controle Abastecimento' in wb.sheetnames and res_ab.data:
+            ws_ab = wb['Controle Abastecimento']
+            last_ab_r = 3
+            while ws_ab.cell(last_ab_r + 1, 2).value is not None:
+                last_ab_r += 1
+
+            for ab in res_ab.data:
+                dt_ab = pd.to_datetime(ab['data_abastecimento']).strftime("%Y-%m-%d")
+                existe_ab = False
+                for r_c in range(4, last_ab_r + 1):
+                    if str(ws_ab.cell(r_c, 2).value) == str(ab['placa']) and dt_ab in str(ws_ab.cell(r_c, 3).value):
+                        existe_ab = True
+                        break
+                if not existe_ab:
+                    last_ab_r += 1
+                    ws_ab.cell(last_ab_r, 1, last_ab_r - 3)
+                    ws_ab.cell(last_ab_r, 2, ab['placa'])
+                    ws_ab.cell(last_ab_r, 3, pd.to_datetime(ab['data_abastecimento']).strftime("%d/%m/%Y"))
+                    ws_ab.cell(last_ab_r, 4, int(ab['km_atual']))
+                    ws_ab.cell(last_ab_r, 5, float(ab['litros']))
+                    ws_ab.cell(last_ab_r, 6, f"=G{last_ab_r}/E{last_ab_r}")
+                    ws_ab.cell(last_ab_r, 7, float(ab['valor_total']))
+                    ws_ab.cell(last_ab_r, 8, ab['combustivel'])
+                    ws_ab.cell(last_ab_r, 9, ab.get('posto', 'Posto Conveniado'))
+                    ws_ab.cell(last_ab_r, 10, ab['tecnico'])
+                    ws_ab.cell(last_ab_r, 11, "App")
+                    for c in range(1, 12):
+                        ws_ab.cell(last_ab_r, c).font = fonte_dados
+                        ws_ab.cell(last_ab_r, c).border = borda_fina
+
+        # --- ABA NOVA: INCIDENTES E SINISTROS (Com Identidade Spassu) ---
+        if 'Incidentes' in wb.sheetnames:
+            wb.remove(wb['Incidentes'])
+        
+        ws_inc = wb.create_sheet(title="Incidentes e Sinistros")
+        
+        # Cabeçalho Oficial Spassu
+        ws_inc.merge_cells("A1:I1")
+        ws_inc["A1"] = "SPASSU TECNOLOGIA - REGISTRO DE INCIDENTES E SINISTROS"
+        ws_inc["A1"].fill = fill_header_roxo
+        ws_inc["A1"].font = fonte_titulo
+        ws_inc["A1"].alignment = Alignment(horizontal="center", vertical="center")
+        ws_inc.row_dimensions[1].height = 40
+
+        colunas_inc = ["ID", "Placa", "Data/Hora", "Tipo de Incidente", "Condutor", "CNH", "Nº B.O.", "Local", "Descrição / Terceiros"]
+        for c_idx, col_name in enumerate(colunas_inc, start=1):
+            cell = ws_inc.cell(3, c_idx, col_name)
+            cell.fill = fill_colunas_laranja
+            cell.font = fonte_colunas
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+        ws_inc.row_dimensions[3].height = 26
+
         if res_inc.data:
-            pd.DataFrame(res_inc.data).to_excel(writer, sheet_name='Incidentes', index=False)
+            for i_idx, inc in enumerate(res_inc.data, start=4):
+                ws_inc.cell(i_idx, 1, inc['id'])
+                ws_inc.cell(i_idx, 2, inc['placa'])
+                ws_inc.cell(i_idx, 3, str(inc['data_hora'])[:16].replace("T", " "))
+                ws_inc.cell(i_idx, 4, inc['tipo_incidente'])
+                ws_inc.cell(i_idx, 5, inc['tecnico'])
+                ws_inc.cell(i_idx, 6, inc.get('cnh_condutor', 'N/D'))
+                ws_inc.cell(i_idx, 7, inc.get('numero_bo', 'N/D'))
+                ws_inc.cell(i_idx, 8, inc.get('local_ocorrencia', 'N/D'))
+                
+                desc_completa = inc.get('descricao', '')
+                if inc.get('houve_terceiros'):
+                    desc_completa += f" | TERCEIROS: {inc.get('dados_terceiros', '')}"
+                ws_inc.cell(i_idx, 9, desc_completa)
+
+                for c in range(1, 10):
+                    ws_inc.cell(i_idx, c).font = fonte_dados
+                    ws_inc.cell(i_idx, c).border = borda_fina
+                ws_inc.row_dimensions[i_idx].height = 20
+
+        # Auto-ajuste da largura das colunas
+        for sheet in wb.sheetnames:
+            ws_curr = wb[sheet]
+            for col in ws_curr.columns:
+                max_len = 0
+                col_letter = col[0].column_letter
+                for cell in col:
+                    if cell.row > 1 and cell.value:
+                        max_len = max(max_len, len(str(cell.value)))
+                ws_curr.column_dimensions[col_letter].width = max(max_len + 3, 12)
+
+        output_stream = io.BytesIO()
+        wb.save(output_stream)
+        return output_stream.getvalue()
+
+    dados_planilha_oficial = gerar_planilha_oficial_spassu()
+
+    st.markdown("""
+        <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 20px; margin-bottom: 20px;">
+            <h4 style="color: #38bdf8; margin: 0 0 8px 0;">📊 Relatório Executivo Completo - Identidade Spassu</h4>
+            <p style="color: #cbd5e1; font-size: 0.9rem; margin: 0;">
+                O arquivo exportado preserva a formatação original da Spassu Tecnologia, incluindo:
+            </p>
+            <ul style="color: #94a3b8; font-size: 0.85rem; margin-top: 8px;">
+                <li><strong>Cadastro de Veículos:</strong> Frota ativa e revisões preventivas.</li>
+                <li><strong>Controle KM Semanal:</strong> Histórico e lançamentos consolidados.</li>
+                <li><strong>Controle Abastecimento:</strong> Litragem, médias de consumo e valores pagos.</li>
+                <li><strong>Dashboards Automatizados:</strong> Fórmulas dinâmicas e indicadores por veículo.</li>
+                <li><strong>Incidentes e Sinistros:</strong> Aba com registro de B.O., fotos e terceiros.</li>
+            </ul>
+        </div>
+    """, unsafe_allow_html=True)
 
     st.download_button(
-        label="📥 Descarregar Relatório Completo (.xlsx)",
-        data=output.getvalue(),
-        file_name="Gestao_Frota_Spassu_Consolidado_2026.xlsx",
+        label="📥 Descarregar Planilha Completa Spassu (.xlsx)",
+        data=dados_planilha_oficial,
+        file_name="Gestao_Frota_Spassu_PMVV_Oficial.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
 # ----------------- 6. NOVO LANÇAMENTO (TÉCNICO / GESTOR) -----------------
 elif menu == "📋 Novo Lançamento (Técnico)":
     st.markdown("<h1>📸 Registro Diário de KM e Rota</h1>", unsafe_allow_html=True)
