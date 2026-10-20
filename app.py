@@ -43,7 +43,7 @@ st.markdown("""
         display: none !important;
     }
 
-    /* Transformar os itens do menu em botões/pílulas de navegação modernos */
+    /* Pílulas de navegação modernos */
     section[data-testid="stSidebar"] div[role="radiogroup"] > label {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.06);
@@ -225,7 +225,7 @@ def extrair_dados_imagem(image_file, prompt_tipo="hodometro"):
                 "{\"data\": \"AAAA-MM-DD\", \"litros\": 0.0, \"valor_total\": 0.0, \"combustivel\": \"Etanol/Gasolina\", \"posto\": \"Nome do Posto\"}"
             )
             
-        for model_name in ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-3.8-flash']:
+        for model_name in ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']:
             try:
                 response = client.models.generate_content(
                     model=model_name,
@@ -265,7 +265,10 @@ def carregar_historico_excel():
     for arq in arquivos_possiveis:
         if os.path.exists(arq):
             try:
-                df = pd.read_excel(arq, sheet_name="Controle KM e Rotas", skiprows=1)
+                # Tenta ler a aba principal de KM do arquivo
+                xls = pd.ExcelFile(arq)
+                sheet_km = "Controle KM Semanal" if "Controle KM Semanal" in xls.sheet_names else "Controle KM e Rotas"
+                df = pd.read_excel(arq, sheet_name=sheet_km, skiprows=1)
                 return df, arq
             except Exception:
                 continue
@@ -336,7 +339,7 @@ with st.sidebar:
 
     st.markdown("""
         <div style="margin-top: 35px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center;">
-            <span style="font-size: 0.72rem; color: #475569;">🟢 Nuvem Supabase Ativa • v2.6</span>
+            <span style="font-size: 0.72rem; color: #475569;">🟢 Nuvem Supabase Ativa • v2.7</span>
         </div>
     """, unsafe_allow_html=True)
 
@@ -357,6 +360,8 @@ if menu == "📊 Dashboard Executivo":
     df_supa_km = pd.DataFrame(res_km.data)
 
     linhas_tabela = []
+    
+    # 1. Registros vindos da nuvem (Mais recentes no topo)
     if not df_supa_km.empty:
         for _, r in df_supa_km.iterrows():
             d_dt = pd.to_datetime(r["data_registro"])
@@ -372,6 +377,7 @@ if menu == "📊 Dashboard Executivo":
                 "Observações": r.get("observacoes", "") or r.get("rota", "Lançamento via App")
             })
 
+    # 2. Histórico da Planilha Excel
     if not df_excel_km.empty:
         for _, r in df_excel_km.iterrows():
             if pd.notna(r.get("Placa")) and pd.notna(r.get("KM Inicial")):
@@ -459,7 +465,6 @@ if menu == "📊 Dashboard Executivo":
     for i, row in df_v.iterrows():
         placa = row["placa"]
         saldo = saldos.get(placa, VALOR_CARGA_MENSAL)
-        gasto = VALOR_CARGA_MENSAL - saldo
         pct = (saldo / VALOR_CARGA_MENSAL) * 100
 
         with cols_v[i]:
@@ -491,7 +496,7 @@ if menu == "📊 Dashboard Executivo":
         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
             <div>
                 <h3 style="color: #f8fafc; font-weight: 700; margin: 0;">📋 Controle de Quilometragem Semanal</h3>
-                <p style="color: #94a3b8; font-size: 0.85rem; margin: 4px 0 0 0;">Histórico de rodagem completo integrado com a base de dados.</p>
+                <p style="color: #94a3b8; font-size: 0.85rem; margin: 4px 0 0 0;">Histórico de rodagem completo ordenado pelos lançamentos mais recentes.</p>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -542,6 +547,7 @@ elif menu == "🚘 Gerenciamento da Frota":
                         "proxima_revisao": int(nova_rev),
                         "ultima_revisao": ultima_rev
                     }).eq("placa", veic_escolhido).execute()
+                    st.toast(f"Veículo {veic_escolhido} atualizado!", icon="🚗")
                     st.success(f"Veículo `{veic_escolhido}` atualizado com sucesso!")
                     st.rerun()
 
@@ -577,7 +583,8 @@ elif menu == "🚘 Gerenciamento da Frota":
                         "cota_mensal": VALOR_CARGA_MENSAL,
                         "saldo_atual": VALOR_CARGA_MENSAL
                     }).execute()
-                    st.success(f"Veículo `{cad_placa}` adicionado com sucesso!")
+                    st.toast(f"Novo veículo {cad_placa} cadastrado!", icon="🎉")
+                    st.success(f"Veículo `{cad_placa}` adicionado com sucesso à frota!")
                     st.rerun()
 
 # ----------------- 3. ESTORNO DE LANÇAMENTOS (GESTOR) -----------------
@@ -598,7 +605,7 @@ elif menu == "↩️ Estorno de Lançamentos":
                         
                         supabase.table("cartoes_saldo").update({"saldo_atual": novo_saldo}).eq("placa", item['placa']).eq("mes_ano", mes_ano_atual).execute()
                         supabase.table("abastecimentos").delete().eq("id", item['id']).execute()
-                        st.success(f"Abastecimento removido e saldo estornado!")
+                        st.toast("Abastecimento removido e saldo estornado!", icon="🗑️")
                         st.rerun()
         else:
             st.info("Nenhum abastecimento recente.")
@@ -614,7 +621,7 @@ elif menu == "↩️ Estorno de Lançamentos":
                         rest_max = supabase.table("registros_km").select("km_final").eq("placa", item['placa']).order("km_final", desc=True).limit(1).execute()
                         if rest_max.data:
                             supabase.table("veiculos").update({"km_atual": rest_max.data[0]["km_final"]}).eq("placa", item['placa']).execute()
-                        st.success("Registro de KM excluído!")
+                        st.toast("Registro de KM excluído!", icon="🗑️")
                         st.rerun()
         else:
             st.info("Nenhum registro de KM recente.")
@@ -632,7 +639,7 @@ elif menu == "📑 Histórico de KM e Rotas":
 # ----------------- 5. EXPORTAR RELATÓRIOS (GESTOR) -----------------
 elif menu == "📥 Exportar Relatórios (Excel)":
     st.markdown("<h1>📥 Exportação Consolidada de Relatórios</h1>", unsafe_allow_html=True)
-    st.caption("Gere a planilha compatível com Microsoft Excel e Office 365 contendo a base completa até a semana atual.")
+    st.caption("Gere a planilha compatível com Microsoft Excel contendo a base completa até a semana atual.")
 
     df_v = carregar_veiculos()
     df_excel_km, _ = carregar_historico_excel()
@@ -722,19 +729,30 @@ elif menu == "📋 Novo Lançamento (Técnico)":
             if km_final < veiculo_atual["km_atual"]:
                 st.error("Erro: O KM informado não pode ser menor que o odômetro anterior.")
             else:
+                km_rodado = int(km_final) - int(veiculo_atual["km_atual"])
                 supabase.table("registros_km").insert({
                     "data_registro": str(data_registro),
                     "placa": placa_sel,
                     "km_inicial": int(veiculo_atual["km_atual"]),
                     "km_final": int(km_final),
+                    "km_percorrido": km_rodado,
                     "rota": rota,
                     "tecnico": tecnico,
                     "observacoes": obs
                 }).execute()
 
                 supabase.table("veiculos").update({"km_atual": int(km_final)}).eq("placa", placa_sel).execute()
-                st.success("Lançamento gravado com sucesso!")
-                st.rerun()
+                
+                # Feedback reforçado
+                st.toast(f"Quilometragem do {placa_sel} salva com sucesso!", icon="✅")
+                st.balloons()
+                st.success(f"""
+                ### ✅ Lançamento Confirmado com Sucesso!
+                * **Veículo:** `{placa_sel}`
+                * **Condutor:** {tecnico}
+                * **Odômetro Final:** **{int(km_final):,} km** (Rodou: {km_rodado:,} km)
+                * **Data:** {data_registro.strftime('%d/%m/%Y')}
+                """.replace(",", "."))
 
 # ----------------- 7. REGISTRO DE ABASTECIMENTO (TÉCNICO / GESTOR) -----------------
 elif menu == "⛽ Registro de Abastecimento":
@@ -786,45 +804,66 @@ elif menu == "⛽ Registro de Abastecimento":
 
                 novo_saldo = max(0.0, saldo_disponivel - valor_total)
                 supabase.table("cartoes_saldo").update({"saldo_atual": novo_saldo}).eq("placa", placa).eq("mes_ano", mes_ano_atual).execute()
-                st.success(f"Abastecimento salvo! Novo saldo: R$ {novo_saldo:,.2f}")
-                st.rerun()
+                
+                # Feedback reforçado
+                st.toast(f"Abastecimento do {placa} gravado!", icon="⛽")
+                st.success(f"""
+                ### ⛽ Abastecimento Gravado com Sucesso!
+                * **Veículo:** `{placa}`
+                * **Combustível:** {combustivel} ({litros:.2f} L no {posto})
+                * **Valor Pago:** **R$ {valor_total:,.2f}**
+                * **Novo Saldo do Cartão:** **R$ {novo_saldo:,.2f}**
+                """)
 
 # ----------------- 8. ALERTAS DE MANUTENÇÃO (TODOS) -----------------
 elif menu == "🛠️ Alertas de Manutenção":
     st.markdown("<h1>🛠️ Monitor de Manutenção Preventiva</h1>", unsafe_allow_html=True)
     df_v = carregar_veiculos()
     cols = st.columns(len(df_v)) if len(df_v) > 0 else [st.container()]
+    
     for i, row in df_v.iterrows():
-        km_restante = row["proxima_revisao"] - row["km_atual"]
+        placa = row["placa"]
+        km_atual = int(row["km_atual"])
+        prox_rev = int(row["proxima_revisao"])
+        km_restante = prox_rev - km_atual
+        
         with cols[i]:
             if km_restante > 1000:
-                st.markdown(f"""
-                    <div class="vehicle-card" style="border-left: 4px solid #22c55e;">
-                        <span class="vehicle-plate">{row['placa']}</span>
-                        <h4 style="margin: 10px 0 4px 0; color: #fff;">{row['modelo']}</h4>
-                        <p style="color: #94a3b8; font-size: 0.85rem; margin: 0 0 10px 0;">Última Revisão: {row['ultima_revisao']}</p>
-                        <div style="font-size: 0.85rem; color: #cbd5e1;">KM Atual: <strong>{row['km_atual']:,} km</strong></div>
-                        <div style="font-size: 0.85rem; color: #cbd5e1;">Próxima: <strong>{row['proxima_revisao']:,} km</strong></div>
-                        <div style="margin-top: 10px;"><span class="metric-badge badge-green">✓ Em dia ({km_restante:,} km restantes)</span></div>
-                    </div>
-                """.replace(",", "."), unsafe_allow_html=True)
+                borda = "#22c55e"
+                badge = f'<span class="metric-badge badge-green">✓ Em dia ({km_restante:,} km restantes)</span>'
             elif km_restante >= 0:
-                st.markdown(f"""
-                    <div class="vehicle-card" style="border-left: 4px solid #f59e0b;">
-                        <span class="vehicle-plate">{row['placa']}</span>
-                        <h4 style="margin: 10px 0 4px 0; color: #fff;">{row['modelo']}</h4>
-                        <div style="font-size: 0.85rem; color: #cbd5e1;">KM Atual: <strong>{row['km_atual']:,} km</strong></div>
-                        <div style="font-size: 0.85rem; color: #cbd5e1;">Próxima: <strong>{row['proxima_revisao']:,} km</strong></div>
-                        <div style="margin-top: 10px;"><span class="metric-badge badge-amber">⚠️ Agendar Revisão ({km_restante:,} km restantes)</span></div>
-                    </div>
-                """.replace(",", "."), unsafe_allow_html=True)
+                borda = "#f59e0b"
+                badge = f'<span class="metric-badge badge-amber">⚠️ Agendar Revisão ({km_restante:,} km restantes)</span>'
             else:
-                st.markdown(f"""
-                    <div class="vehicle-card" style="border-left: 4px solid #ef4444;">
-                        <span class="vehicle-plate">{row['placa']}</span>
-                        <h4 style="margin: 10px 0 4px 0; color: #fff;">{row['modelo']}</h4>
-                        <div style="font-size: 0.85rem; color: #cbd5e1;">KM Atual: <strong>{row['km_atual']:,} km</strong></div>
-                        <div style="font-size: 0.85rem; color: #cbd5e1;">Próxima: <strong>{row['proxima_revisao']:,} km</strong></div>
-                        <div style="margin-top: 10px;"><span class="metric-badge" style="background: rgba(239,68,68,0.2); color: #f87171;">🚨 VENCIDA ({abs(km_restante):,} km excedidos)</span></div>
-                    </div>
-                """.replace(",", "."), unsafe_allow_html=True)
+                borda = "#ef4444"
+                badge = f'<span class="metric-badge" style="background: rgba(239,68,68,0.2); color: #f87171;">🚨 VENCIDA ({abs(km_restante):,} km excedidos)</span>'
+
+            st.markdown(f"""
+                <div class="vehicle-card" style="border-left: 4px solid {borda}; margin-bottom: 12px;">
+                    <span class="vehicle-plate">{placa}</span>
+                    <h4 style="margin: 10px 0 4px 0; color: #fff;">{row['modelo']}</h4>
+                    <p style="color: #94a3b8; font-size: 0.85rem; margin: 0 0 10px 0;">Última Revisão: {row['ultima_revisao']}</p>
+                    <div style="font-size: 0.85rem; color: #cbd5e1;">KM Atual: <strong>{km_atual:,} km</strong></div>
+                    <div style="font-size: 0.85rem; color: #cbd5e1;">Próxima: <strong>{prox_rev:,} km</strong></div>
+                    <div style="margin-top: 10px;">{badge}</div>
+                </div>
+            """.replace(",", "."), unsafe_allow_html=True)
+            
+            # Botão de confirmação de revisão (ciclo de 10.000 km)
+            with st.expander(f"⚙️ Realizar Revisão ({placa})"):
+                oficina = st.text_input("Oficina / Prestador", placeholder="Ex: Auto Center", key=f"ofi_{placa}")
+                valor_rev = st.number_input("Valor Gasto (R$)", min_value=0.0, step=50.0, key=f"val_{placa}")
+                
+                if st.button(f"✅ Confirmar Revisão de {prox_rev:,} km", key=f"btn_rev_{placa}"):
+                    nova_prox_rev = prox_rev + 10000
+                    data_hoje = datetime.date.today().strftime("%d/%m/%Y")
+                    desc_ultima = f"{prox_rev:,} km em {data_hoje}".replace(",", ".")
+                    
+                    supabase.table("veiculos").update({
+                        "proxima_revisao": nova_prox_rev,
+                        "ultima_revisao": desc_ultima
+                    }).eq("placa", placa).execute()
+                    
+                    st.toast(f"Revisão de {placa} confirmada!", icon="🎉")
+                    st.success(f"Revisão registrada! Próxima meta: {nova_prox_rev:,} km".replace(",", "."))
+                    st.rerun()
