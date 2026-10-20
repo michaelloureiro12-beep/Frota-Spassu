@@ -38,7 +38,7 @@ st.markdown("""
         border-right: 1px solid rgba(255, 255, 255, 0.06);
     }
 
-    /* Esconder as bolinhas circulares do radio button */
+    /* Esconder marcadores nativos do radio button */
     section[data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child {
         display: none !important;
     }
@@ -220,10 +220,25 @@ def extrair_dados_imagem(image_file, prompt_tipo="hodometro"):
                 "Analise a foto deste painel de veículo e extraia apenas o valor da quilometragem atual (hodômetro total). "
                 "Responda SOMENTE em formato JSON no formato: {\"km\": 12345}"
             )
-        else:
+        elif prompt_tipo == "cupom":
             prompt = (
                 "Analise este cupom fiscal de abastecimento e extraia os seguintes dados em formato JSON estrito: "
                 "{\"data\": \"AAAA-MM-DD\", \"litros\": 0.0, \"valor_total\": 0.0, \"combustivel\": \"Etanol/Gasolina\", \"posto\": \"Nome do Posto\"}"
+            )
+        elif prompt_tipo == "boletim":
+            prompt = (
+                "Analise esta foto/documento de Boletim de Ocorrência (B.O.) ou comprovante de acidente de trânsito e extraia os dados em formato JSON: "
+                "{"
+                "\"numero_bo\": \"Número do B.O. ou protocolo\", "
+                "\"data\": \"AAAA-MM-DD\", "
+                "\"hora\": \"HH:MM\", "
+                "\"local\": \"Local/Logradouro do acidente\", "
+                "\"condutor\": \"Nome do condutor envolvido\", "
+                "\"cnh\": \"Registro CNH\", "
+                "\"descricao\": \"Relato sintético do ocorrido e danos sofridos\", "
+                "\"houve_terceiros\": true/false, "
+                "\"dados_terceiros\": \"Nome, contacto, matrícula/placa e modelo do outro veículo se houver\""
+                "}"
             )
             
         for model_name in ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']:
@@ -342,7 +357,7 @@ with st.sidebar:
 
     st.markdown("""
         <div style="margin-top: 35px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center;">
-            <span style="font-size: 0.72rem; color: #475569;">🟢 Nuvem Supabase Ativa • v2.8</span>
+            <span style="font-size: 0.72rem; color: #475569;">🟢 Nuvem Supabase Ativa • v2.9</span>
         </div>
     """, unsafe_allow_html=True)
 
@@ -897,16 +912,52 @@ elif menu == "⛽ Registro de Abastecimento":
                 * **Novo Saldo do Cartão:** **R$ {novo_saldo:,.2f}**
                 """)
 
-# ----------------- NOVO: REGISTRAR INCIDENTE / OCORRÊNCIA (TÉCNICO & GESTOR) -----------------
+# ----------------- REGISTRAR INCIDENTE / OCORRÊNCIA COM IA (TÉCNICO & GESTOR) -----------------
 elif menu == "🚨 Registrar Incidente / Ocorrência":
     st.markdown("<h1>🚨 Registro de Incidente ou Sinistro</h1>", unsafe_allow_html=True)
-    st.caption("Utilize este formulário para registrar avarias, colisões, infrações, multas ou qualquer ocorrência com o veículo.")
+    st.caption("Aponte a câmara para o Boletim de Ocorrência (B.O.) ou envie a foto para autopreencher os dados via Inteligência Artificial.")
 
     df_v = carregar_veiculos()
     opcoes_veiculo = {f"{row['placa']} - {row['modelo']} ({row['tecnico']})": row['placa'] for _, row in df_v.iterrows()}
     escolha = st.selectbox("Selecione o Veículo Envolvido", list(opcoes_veiculo.keys()))
     placa_sel = opcoes_veiculo[escolha]
     veiculo_atual = df_v[df_v["placa"] == placa_sel].iloc[0]
+
+    # Captura da Câmara ou Upload do Ficheiro do B.O.
+    foto_bo = st.camera_input("📷 Tirar foto do B.O. / Documento de Ocorrência") or st.file_uploader(
+        "📁 Ou envie a foto/documento do B.O.", type=['jpg', 'jpeg', 'png']
+    )
+
+    dados_ia = {
+        "numero_bo": "",
+        "data": str(datetime.date.today()),
+        "hora": datetime.datetime.now().strftime("%H:%M"),
+        "local": "",
+        "condutor": veiculo_atual["tecnico"],
+        "cnh": "",
+        "descricao": "",
+        "houve_terceiros": False,
+        "dados_terceiros": ""
+    }
+
+    if foto_bo:
+        with st.spinner("🤖 A processar o Boletim de Ocorrência com IA..."):
+            extraido = extrair_dados_imagem(foto_bo, prompt_tipo="boletim")
+            if extraido:
+                dados_ia.update(extraido)
+                st.success("✅ Boletim de Ocorrência lido com sucesso! Confira os dados nos campos abaixo.")
+
+    # Tratamento defensivo de data e hora
+    try:
+        data_default = datetime.date.fromisoformat(dados_ia.get("data", str(datetime.date.today())))
+    except Exception:
+        data_default = datetime.date.today()
+
+    try:
+        hora_parts = dados_ia.get("hora", "12:00").split(":")
+        hora_default = datetime.time(int(hora_parts[0]), int(hora_parts[1]))
+    except Exception:
+        hora_default = datetime.datetime.now().time()
 
     with st.form("form_incidente"):
         col1, col2 = st.columns(2)
@@ -920,28 +971,34 @@ elif menu == "🚨 Registrar Incidente / Ocorrência":
                 "Dano por Terceiros",
                 "Outro"
             ])
-            data_ocorrido = st.date_input("Data do Ocorrido", datetime.date.today())
-            hora_ocorrido = st.time_input("Horário Aproximado", datetime.datetime.now().time())
-            tecnico_condutor = st.text_input("Nome do Condutor no Momento", value=veiculo_atual["tecnico"])
-            cnh_condutor = st.text_input("Registro da CNH do Condutor", placeholder="Ex: 01234567890")
+            data_ocorrido = st.date_input("Data do Ocorrido", value=data_default)
+            hora_ocorrido = st.time_input("Horário Aproximado", value=hora_default)
+            tecnico_condutor = st.text_input("Nome do Condutor", value=dados_ia.get("condutor") or veiculo_atual["tecnico"])
+            cnh_condutor = st.text_input("Registro da CNH do Condutor", value=dados_ia.get("cnh", ""))
 
         with col2:
-            numero_bo = st.text_input("Número do B.O. (Boletim de Ocorrência)", placeholder="Ex: BO-2026-987654 (se aplicável)")
-            local_ocorrencia = st.text_input("Local da Ocorrência", placeholder="Ex: Av. Champagnat, Centro, Vila Velha")
-            houve_terceiros = st.checkbox("Houve terceiros / outro veículo envolvido?")
-            dados_terceiros = ""
-            if houve_terceiros:
-                dados_terceiros = st.text_area("Dados dos Terceiros Envolvidos", placeholder="Nome, Telefone, Placa e Modelo do outro carro")
+            numero_bo = st.text_input("Número do B.O. (Boletim de Ocorrência)", value=dados_ia.get("numero_bo", ""))
+            local_ocorrencia = st.text_input("Local da Ocorrência", value=dados_ia.get("local", ""))
+            houve_terceiros = st.checkbox("Houve terceiros / outro veículo envolvido?", value=bool(dados_ia.get("houve_terceiros", False)))
+            dados_terceiros = st.text_area(
+                "Dados dos Terceiros Envolvidos (se houver)",
+                value=dados_ia.get("dados_terceiros", ""),
+                placeholder="Nome, Telefone, Placa e Modelo do outro veículo...",
+                height=95
+            )
 
         st.markdown("<hr style='border: 0.5px solid rgba(255,255,255,0.08); margin: 15px 0;'>", unsafe_allow_html=True)
-        descricao = st.text_area("Descrição Detalhada do Ocorrido", placeholder="Relate como ocorreu o fato, condições climáticas, motivo e danos visíveis...", height=120)
-        
-        fotos_incidente = st.file_uploader("Fotos do Incidente / Avaria / B.O. (Opcional)", type=['jpg', 'jpeg', 'png', 'pdf'], accept_multiple_files=True)
+        descricao = st.text_area(
+            "Descrição Detalhada do Ocorrido",
+            value=dados_ia.get("descricao", ""),
+            placeholder="Relate como ocorreu o sinistro, danos visíveis e contexto...",
+            height=120
+        )
 
         salvar_incidente = st.form_submit_button("🚨 Gravar Registro de Incidente")
         if salvar_incidente:
             if not descricao:
-                st.error("Por favor, descreva detalhadamente o ocorrido.")
+                st.error("Por favor, descreva sucintamente o ocorrido.")
             else:
                 data_hora_completa = datetime.datetime.combine(data_ocorrido, hora_ocorrido).isoformat()
                 supabase.table("incidentes").insert({
@@ -954,7 +1011,7 @@ elif menu == "🚨 Registrar Incidente / Ocorrência":
                     "local_ocorrencia": local_ocorrencia,
                     "descricao": descricao,
                     "houve_terceiros": houve_terceiros,
-                    "dados_terceiros": dados_terceiros,
+                    "dados_terceiros": dados_terceiros if houve_terceiros else "",
                     "status": "Em Análise pela Gestão"
                 }).execute()
 
