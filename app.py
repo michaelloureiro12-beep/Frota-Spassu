@@ -135,6 +135,7 @@ st.markdown("""
     .badge-green { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
     .badge-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
     .badge-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+    .badge-red { background: rgba(239, 68, 68, 0.2); color: #f87171; }
 
     /* Card dos Veículos */
     .vehicle-card {
@@ -265,7 +266,6 @@ def carregar_historico_excel():
     for arq in arquivos_possiveis:
         if os.path.exists(arq):
             try:
-                # Tenta ler a aba principal de KM do arquivo
                 xls = pd.ExcelFile(arq)
                 sheet_km = "Controle KM Semanal" if "Controle KM Semanal" in xls.sheet_names else "Controle KM e Rotas"
                 df = pd.read_excel(arq, sheet_name=sheet_km, skiprows=1)
@@ -306,11 +306,13 @@ with st.sidebar:
         menu_opcoes = [
             "📊 Dashboard Executivo",
             "🚘 Gerenciamento da Frota",
+            "🚨 Gestão de Incidentes",
             "↩️ Estorno de Lançamentos",
             "📑 Histórico de KM e Rotas",
             "📥 Exportar Relatórios (Excel)",
             "📋 Novo Lançamento (Técnico)", 
             "⛽ Registro de Abastecimento", 
+            "🚨 Registrar Incidente / Ocorrência",
             "🛠️ Alertas de Manutenção"
         ]
     else:
@@ -330,6 +332,7 @@ with st.sidebar:
         menu_opcoes = [
             "📋 Novo Lançamento (Técnico)", 
             "⛽ Registro de Abastecimento", 
+            "🚨 Registrar Incidente / Ocorrência",
             "🛠️ Alertas de Manutenção"
         ]
     st.markdown('</div>', unsafe_allow_html=True)
@@ -339,7 +342,7 @@ with st.sidebar:
 
     st.markdown("""
         <div style="margin-top: 35px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center;">
-            <span style="font-size: 0.72rem; color: #475569;">🟢 Nuvem Supabase Ativa • v2.7</span>
+            <span style="font-size: 0.72rem; color: #475569;">🟢 Nuvem Supabase Ativa • v2.8</span>
         </div>
     """, unsafe_allow_html=True)
 
@@ -360,8 +363,6 @@ if menu == "📊 Dashboard Executivo":
     df_supa_km = pd.DataFrame(res_km.data)
 
     linhas_tabela = []
-    
-    # 1. Registros vindos da nuvem (Mais recentes no topo)
     if not df_supa_km.empty:
         for _, r in df_supa_km.iterrows():
             d_dt = pd.to_datetime(r["data_registro"])
@@ -377,7 +378,6 @@ if menu == "📊 Dashboard Executivo":
                 "Observações": r.get("observacoes", "") or r.get("rota", "Lançamento via App")
             })
 
-    # 2. Histórico da Planilha Excel
     if not df_excel_km.empty:
         for _, r in df_excel_km.iterrows():
             if pd.notna(r.get("Placa")) and pd.notna(r.get("KM Inicial")):
@@ -496,7 +496,7 @@ if menu == "📊 Dashboard Executivo":
         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
             <div>
                 <h3 style="color: #f8fafc; font-weight: 700; margin: 0;">📋 Controle de Quilometragem Semanal</h3>
-                <p style="color: #94a3b8; font-size: 0.85rem; margin: 4px 0 0 0;">Histórico de rodagem completo ordenado pelos lançamentos mais recentes.</p>
+                <p style="color: #94a3b8; font-size: 0.85rem; margin: 4px 0 0 0;">Histórico de rodagem completo integrado com a base de dados.</p>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -547,7 +547,7 @@ elif menu == "🚘 Gerenciamento da Frota":
                         "proxima_revisao": int(nova_rev),
                         "ultima_revisao": ultima_rev
                     }).eq("placa", veic_escolhido).execute()
-                    st.toast(f"Veículo {veic_escolhido} atualizado com sucesso!", icon="🚗")
+                    st.toast(f"Veículo {veic_escolhido} atualizado!", icon="🚗")
                     st.success(f"Veículo `{veic_escolhido}` atualizado com sucesso!")
                     st.rerun()
         else:
@@ -601,7 +601,6 @@ elif menu == "🚘 Gerenciamento da Frota":
 
     df_v_atual = carregar_veiculos()
     if not df_v_atual.empty:
-        # Tabela geral resumida
         st.dataframe(
             df_v_atual[["placa", "modelo", "marca", "tecnico", "km_atual", "proxima_revisao", "ultima_revisao"]],
             use_container_width=True,
@@ -620,15 +619,55 @@ elif menu == "🚘 Gerenciamento da Frota":
                 with col_del:
                     confirma = st.checkbox("Confirmar exclusão", key=f"chk_del_{placa_v}")
                     if st.button(f"🗑️ Excluir {placa_v}", key=f"btn_del_v_{placa_v}", disabled=not confirma):
-                        # Remove do saldo de cartões e da tabela de veículos
                         supabase.table("cartoes_saldo").delete().eq("placa", placa_v).execute()
                         supabase.table("veiculos").delete().eq("placa", placa_v).execute()
-                        
                         st.toast(f"Veículo {placa_v} removido com sucesso!", icon="🗑️")
                         st.success(f"Veículo `{placa_v}` foi removido da frota.")
                         st.rerun()
     else:
         st.info("Nenhum veículo cadastrado no momento.")
+
+# ----------------- NOVO: GESTÃO DE INCIDENTES (GESTOR) -----------------
+elif menu == "🚨 Gestão de Incidentes":
+    st.markdown("<h1>🚨 Gestão de Incidentes e Sinistros</h1>", unsafe_allow_html=True)
+    st.caption("Acompanhamento das ocorrências, sinistros, multas e avarias registradas pelos condutores.")
+
+    res_inc = supabase.table("incidentes").select("*").order("data_hora", desc=True).execute()
+    df_inc = pd.DataFrame(res_inc.data) if res_inc.data else pd.DataFrame()
+
+    if not df_inc.empty:
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total de Ocorrências", len(df_inc))
+        col2.metric("Colisões / Avarias", len(df_inc[df_inc["tipo_incidente"].str.contains("Colisão|Avaria", na=False)]))
+        col3.metric("Multas / Infrações", len(df_inc[df_inc["tipo_incidente"].str.contains("Multa", na=False)]))
+
+        st.divider()
+        st.dataframe(df_inc, use_container_width=True, hide_index=True)
+
+        st.markdown("<h3 style='color: #f8fafc; font-weight: 700; margin-top: 20px;'>📋 Detalhes dos Incidentes</h3>", unsafe_allow_html=True)
+        for _, row_inc in df_inc.iterrows():
+            with st.expander(f"🚨 {row_inc['tipo_incidente']} | Placa: {row_inc['placa']} | Data: {row_inc['data_hora'][:16]}"):
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.write(f"**Condutor:** {row_inc['tecnico']}")
+                    st.write(f"**CNH do Condutor:** {row_inc.get('cnh_condutor', 'Não informado')}")
+                    st.write(f"**Número do B.O.:** {row_inc.get('numero_bo', 'Não gerado')}")
+                    st.write(f"**Local:** {row_inc.get('local_ocorrencia', 'Não informado')}")
+                with c2:
+                    st.write(f"**Houve Terceiros Envolvidos:** {'Sim' if row_inc.get('houve_terceiros') else 'Não'}")
+                    if row_inc.get('houve_terceiros'):
+                        st.write(f"**Dados de Terceiros:** {row_inc.get('dados_terceiros', 'Não informado')}")
+                    st.write(f"**Status da Análise:** `{row_inc.get('status', 'Pendente')}`")
+                
+                st.info(f"**Descrição do Ocorrido:**\n\n{row_inc['descricao']}")
+                
+                if st.button(f"🗑️ Excluir Ocorrência #{row_inc['id']}", key=f"del_inc_{row_inc['id']}"):
+                    supabase.table("incidentes").delete().eq("id", row_inc['id']).execute()
+                    st.toast(f"Incidente #{row_inc['id']} excluído!", icon="🗑️")
+                    st.rerun()
+    else:
+        st.info("Nenhuma ocorrência ou incidente registrado na frota.")
+
 # ----------------- 3. ESTORNO DE LANÇAMENTOS (GESTOR) -----------------
 elif menu == "↩️ Estorno de Lançamentos":
     st.markdown("<h1>↩️ Estorno / Cancelamento de Lançamentos Recentes</h1>", unsafe_allow_html=True)
@@ -687,6 +726,7 @@ elif menu == "📥 Exportar Relatórios (Excel)":
     df_excel_km, _ = carregar_historico_excel()
     res_km = supabase.table("registros_km").select("*").execute()
     res_ab = supabase.table("abastecimentos").select("*").execute()
+    res_inc = supabase.table("incidentes").select("*").execute()
 
     linhas_relatorio = []
     if res_km.data:
@@ -726,6 +766,8 @@ elif menu == "📥 Exportar Relatórios (Excel)":
         df_v.to_excel(writer, sheet_name='Veiculos', index=False)
         df_export_km.to_excel(writer, sheet_name='Controle KM e Rotas', index=False)
         pd.DataFrame(res_ab.data).to_excel(writer, sheet_name='Abastecimentos', index=False)
+        if res_inc.data:
+            pd.DataFrame(res_inc.data).to_excel(writer, sheet_name='Incidentes', index=False)
 
     st.download_button(
         label="📥 Descarregar Relatório Completo (.xlsx)",
@@ -785,7 +827,6 @@ elif menu == "📋 Novo Lançamento (Técnico)":
 
                 supabase.table("veiculos").update({"km_atual": int(km_final)}).eq("placa", placa_sel).execute()
                 
-                # Feedback reforçado
                 st.toast(f"Quilometragem do {placa_sel} salva com sucesso!", icon="✅")
                 st.balloons()
                 st.success(f"""
@@ -847,7 +888,6 @@ elif menu == "⛽ Registro de Abastecimento":
                 novo_saldo = max(0.0, saldo_disponivel - valor_total)
                 supabase.table("cartoes_saldo").update({"saldo_atual": novo_saldo}).eq("placa", placa).eq("mes_ano", mes_ano_atual).execute()
                 
-                # Feedback reforçado
                 st.toast(f"Abastecimento do {placa} gravado!", icon="⛽")
                 st.success(f"""
                 ### ⛽ Abastecimento Gravado com Sucesso!
@@ -855,6 +895,77 @@ elif menu == "⛽ Registro de Abastecimento":
                 * **Combustível:** {combustivel} ({litros:.2f} L no {posto})
                 * **Valor Pago:** **R$ {valor_total:,.2f}**
                 * **Novo Saldo do Cartão:** **R$ {novo_saldo:,.2f}**
+                """)
+
+# ----------------- NOVO: REGISTRAR INCIDENTE / OCORRÊNCIA (TÉCNICO & GESTOR) -----------------
+elif menu == "🚨 Registrar Incidente / Ocorrência":
+    st.markdown("<h1>🚨 Registro de Incidente ou Sinistro</h1>", unsafe_allow_html=True)
+    st.caption("Utilize este formulário para registrar avarias, colisões, infrações, multas ou qualquer ocorrência com o veículo.")
+
+    df_v = carregar_veiculos()
+    opcoes_veiculo = {f"{row['placa']} - {row['modelo']} ({row['tecnico']})": row['placa'] for _, row in df_v.iterrows()}
+    escolha = st.selectbox("Selecione o Veículo Envolvido", list(opcoes_veiculo.keys()))
+    placa_sel = opcoes_veiculo[escolha]
+    veiculo_atual = df_v[df_v["placa"] == placa_sel].iloc[0]
+
+    with st.form("form_incidente"):
+        col1, col2 = st.columns(2)
+        with col1:
+            tipo_incidente = st.selectbox("Tipo de Incidente", [
+                "Colisão / Batida",
+                "Multa / Infração de Trânsito",
+                "Avaria Leve / Arranhão / Amassado",
+                "Furto / Roubo de Itens ou Veículo",
+                "Pane Mecânica / Pane Elétrica",
+                "Dano por Terceiros",
+                "Outro"
+            ])
+            data_ocorrido = st.date_input("Data do Ocorrido", datetime.date.today())
+            hora_ocorrido = st.time_input("Horário Aproximado", datetime.datetime.now().time())
+            tecnico_condutor = st.text_input("Nome do Condutor no Momento", value=veiculo_atual["tecnico"])
+            cnh_condutor = st.text_input("Registro da CNH do Condutor", placeholder="Ex: 01234567890")
+
+        with col2:
+            numero_bo = st.text_input("Número do B.O. (Boletim de Ocorrência)", placeholder="Ex: BO-2026-987654 (se aplicável)")
+            local_ocorrencia = st.text_input("Local da Ocorrência", placeholder="Ex: Av. Champagnat, Centro, Vila Velha")
+            houve_terceiros = st.checkbox("Houve terceiros / outro veículo envolvido?")
+            dados_terceiros = ""
+            if houve_terceiros:
+                dados_terceiros = st.text_area("Dados dos Terceiros Envolvidos", placeholder="Nome, Telefone, Placa e Modelo do outro carro")
+
+        st.markdown("<hr style='border: 0.5px solid rgba(255,255,255,0.08); margin: 15px 0;'>", unsafe_allow_html=True)
+        descricao = st.text_area("Descrição Detalhada do Ocorrido", placeholder="Relate como ocorreu o fato, condições climáticas, motivo e danos visíveis...", height=120)
+        
+        fotos_incidente = st.file_uploader("Fotos do Incidente / Avaria / B.O. (Opcional)", type=['jpg', 'jpeg', 'png', 'pdf'], accept_multiple_files=True)
+
+        salvar_incidente = st.form_submit_button("🚨 Gravar Registro de Incidente")
+        if salvar_incidente:
+            if not descricao:
+                st.error("Por favor, descreva detalhadamente o ocorrido.")
+            else:
+                data_hora_completa = datetime.datetime.combine(data_ocorrido, hora_ocorrido).isoformat()
+                supabase.table("incidentes").insert({
+                    "data_hora": data_hora_completa,
+                    "placa": placa_sel,
+                    "tipo_incidente": tipo_incidente,
+                    "tecnico": tecnico_condutor,
+                    "cnh_condutor": cnh_condutor,
+                    "numero_bo": numero_bo,
+                    "local_ocorrencia": local_ocorrencia,
+                    "descricao": descricao,
+                    "houve_terceiros": houve_terceiros,
+                    "dados_terceiros": dados_terceiros,
+                    "status": "Em Análise pela Gestão"
+                }).execute()
+
+                st.toast("Incidente registrado com sucesso no sistema!", icon="🚨")
+                st.warning(f"""
+                ### 🚨 Incidente Registrado!
+                * **Veículo:** `{placa_sel}`
+                * **Tipo:** {tipo_incidente}
+                * **Condutor:** {tecnico_condutor} (CNH: {cnh_condutor or 'N/A'})
+                * **Data/Hora:** {data_ocorrido.strftime('%d/%m/%Y')} às {hora_ocorrido.strftime('%H:%M')}
+                * **B.O.:** {numero_bo or 'Não informado'}
                 """)
 
 # ----------------- 8. ALERTAS DE MANUTENÇÃO (TODOS) -----------------
@@ -891,7 +1002,6 @@ elif menu == "🛠️ Alertas de Manutenção":
                 </div>
             """.replace(",", "."), unsafe_allow_html=True)
             
-            # Botão de confirmação de revisão (ciclo de 10.000 km)
             with st.expander(f"⚙️ Realizar Revisão ({placa})"):
                 oficina = st.text_input("Oficina / Prestador", placeholder="Ex: Auto Center", key=f"ofi_{placa}")
                 valor_rev = st.number_input("Valor Gasto (R$)", min_value=0.0, step=50.0, key=f"val_{placa}")
