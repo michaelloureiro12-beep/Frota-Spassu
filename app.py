@@ -513,7 +513,7 @@ if menu == "📊 Dashboard Executivo":
 
 # ----------------- 2. GERENCIAMENTO DA FROTA (GESTOR) -----------------
 elif menu == "🚘 Gerenciamento da Frota":
-    st.markdown("<h1>🚘 Gerenciamento da Frota (Editar e Trocar Veículos)</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>🚘 Gerenciamento da Frota (Editar, Cadastrar e Excluir)</h1>", unsafe_allow_html=True)
     df_v = carregar_veiculos()
     tab_edit, tab_novo = st.tabs(["✏️ Editar Veículo Existente", "➕ Adicionar Novo Veículo"])
     
@@ -547,9 +547,11 @@ elif menu == "🚘 Gerenciamento da Frota":
                         "proxima_revisao": int(nova_rev),
                         "ultima_revisao": ultima_rev
                     }).eq("placa", veic_escolhido).execute()
-                    st.toast(f"Veículo {veic_escolhido} atualizado!", icon="🚗")
+                    st.toast(f"Veículo {veic_escolhido} atualizado com sucesso!", icon="🚗")
                     st.success(f"Veículo `{veic_escolhido}` atualizado com sucesso!")
                     st.rerun()
+        else:
+            st.info("Nenhum veículo cadastrado para edição.")
 
     with tab_novo:
         with st.form("form_novo_veiculo"):
@@ -584,9 +586,49 @@ elif menu == "🚘 Gerenciamento da Frota":
                         "saldo_atual": VALOR_CARGA_MENSAL
                     }).execute()
                     st.toast(f"Novo veículo {cad_placa} cadastrado!", icon="🎉")
-                    st.success(f"Veículo `{cad_placa}` adicionado com sucesso à frota!")
+                    st.success(f"Veículo `{cad_placa}` adicionado com sucesso!")
                     st.rerun()
 
+    # --- LISTAGEM E EXCLUSÃO DE VEÍCULOS ABAIXO DOS FORMULÁRIOS ---
+    st.markdown("<div style='height: 30px;'></div>", unsafe_allow_html=True)
+    st.divider()
+    st.markdown("""
+        <div style="margin-bottom: 15px;">
+            <h3 style="color: #f8fafc; font-weight: 700; margin: 0;">📋 Veículos Cadastrados na Frota</h3>
+            <p style="color: #94a3b8; font-size: 0.85rem; margin: 4px 0 0 0;">Gerencie ou remova carros antigos ao substituir por novas unidades.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    df_v_atual = carregar_veiculos()
+    if not df_v_atual.empty:
+        # Tabela geral resumida
+        st.dataframe(
+            df_v_atual[["placa", "modelo", "marca", "tecnico", "km_atual", "proxima_revisao", "ultima_revisao"]],
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.markdown("<h4 style='color: #f8fafc; font-weight: 600; margin-top: 20px;'>🗑️ Ações de Exclusão / Desativação</h4>", unsafe_allow_html=True)
+
+        for _, v_row in df_v_atual.iterrows():
+            placa_v = v_row["placa"]
+            with st.expander(f"🚗 {placa_v} - {v_row['modelo']} ({v_row['tecnico']})"):
+                col_info, col_del = st.columns([3, 1])
+                with col_info:
+                    st.write(f"**Marca:** {v_row['marca']} | **Odômetro Atual:** {int(v_row['km_atual']):,} km".replace(",", "."))
+                    st.write(f"**Próxima Revisão:** {int(v_row['proxima_revisao']):,} km | **Última:** {v_row['ultima_revisao']}".replace(",", "."))
+                with col_del:
+                    confirma = st.checkbox("Confirmar exclusão", key=f"chk_del_{placa_v}")
+                    if st.button(f"🗑️ Excluir {placa_v}", key=f"btn_del_v_{placa_v}", disabled=not confirma):
+                        # Remove do saldo de cartões e da tabela de veículos
+                        supabase.table("cartoes_saldo").delete().eq("placa", placa_v).execute()
+                        supabase.table("veiculos").delete().eq("placa", placa_v).execute()
+                        
+                        st.toast(f"Veículo {placa_v} removido com sucesso!", icon="🗑️")
+                        st.success(f"Veículo `{placa_v}` foi removido da frota.")
+                        st.rerun()
+    else:
+        st.info("Nenhum veículo cadastrado no momento.")
 # ----------------- 3. ESTORNO DE LANÇAMENTOS (GESTOR) -----------------
 elif menu == "↩️ Estorno de Lançamentos":
     st.markdown("<h1>↩️ Estorno / Cancelamento de Lançamentos Recentes</h1>", unsafe_allow_html=True)
