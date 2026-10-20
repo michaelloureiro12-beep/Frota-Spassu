@@ -742,26 +742,22 @@ elif menu == "📥 Exportar Relatórios (Excel)":
     res_ab = supabase.table("abastecimentos").select("*").order("data_abastecimento", desc=False).execute()
     res_inc = supabase.table("incidentes").select("*").order("data_hora", desc=False).execute()
 
-    # Importação das ferramentas de formatação do Excel
     import openpyxl
     from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
 
-    # Cores Oficiais da Spassu Tecnologia
     ROXO_SPASSU = "201547"
     LARANJA_SPASSU = "FA4616"
-    CINZA_ZEBRADO = "F8FAFC"
 
     def gerar_planilha_oficial_spassu():
         nome_template = "Gestao_Frota_Spassu_PMVV_Atualizada.xlsx"
         
-        # 1. Carrega o modelo oficial se existir no repositório
         if os.path.exists(nome_template):
             wb = openpyxl.load_workbook(nome_template)
         else:
             wb = openpyxl.Workbook()
             wb.remove(wb.active)
 
-        # Estilos Padrão Spassu
         fill_header_roxo = PatternFill(start_color=ROXO_SPASSU, end_color=ROXO_SPASSU, fill_type="solid")
         fill_colunas_laranja = PatternFill(start_color=LARANJA_SPASSU, end_color=LARANJA_SPASSU, fill_type="solid")
         fonte_titulo = Font(name="Poppins", size=16, bold=True, color="FFFFFF")
@@ -774,10 +770,9 @@ elif menu == "📥 Exportar Relatórios (Excel)":
             bottom=Side(style='thin', color='E2E8F0')
         )
 
-        # --- ABA 1: CADASTRO DE VEÍCULOS ---
+        # 1. Atualizar Cadastro de Veículos
         if 'Cadastro de Veículos' in wb.sheetnames:
             ws_cad = wb['Cadastro de Veículos']
-            # Limpa linhas antigas mantendo cabeçalho
             for r in range(4, 50):
                 for c in range(1, 12):
                     ws_cad.cell(r, c).value = None
@@ -799,10 +794,9 @@ elif menu == "📥 Exportar Relatórios (Excel)":
                         ws_cad.cell(r, c).font = fonte_dados
                         ws_cad.cell(r, c).border = borda_fina
 
-        # --- ABA 2: CONTROLE KM SEMANAL (Sincronizado) ---
+        # 2. Atualizar Controle KM Semanal
         if 'Controle KM Semanal' in wb.sheetnames:
             ws_km = wb['Controle KM Semanal']
-            # Identifica a última linha preenchida do template
             last_r = 3
             while ws_km.cell(last_r + 1, 2).value is not None:
                 last_r += 1
@@ -811,7 +805,6 @@ elif menu == "📥 Exportar Relatórios (Excel)":
                 for reg in res_km.data:
                     dt = pd.to_datetime(reg['data_registro'])
                     d_fmt = dt.strftime("%Y-%m-%d")
-                    # Evita duplicar se a data e a placa já estiverem na planilha
                     existe = False
                     for r_check in range(4, last_r + 1):
                         if str(ws_km.cell(r_check, 2).value) == str(reg['placa']) and d_fmt in str(ws_km.cell(r_check, 4).value):
@@ -833,7 +826,7 @@ elif menu == "📥 Exportar Relatórios (Excel)":
                             ws_km.cell(last_r, c).font = fonte_dados
                             ws_km.cell(last_r, c).border = borda_fina
 
-        # --- ABA 3: CONTROLE ABASTECIMENTO (Sincronizado) ---
+        # 3. Atualizar Controle de Abastecimento
         if 'Controle Abastecimento' in wb.sheetnames and res_ab.data:
             ws_ab = wb['Controle Abastecimento']
             last_ab_r = 3
@@ -864,13 +857,11 @@ elif menu == "📥 Exportar Relatórios (Excel)":
                         ws_ab.cell(last_ab_r, c).font = fonte_dados
                         ws_ab.cell(last_ab_r, c).border = borda_fina
 
-        # --- ABA NOVA: INCIDENTES E SINISTROS (Com Identidade Spassu) ---
+        # 4. Aba de Incidentes e Sinistros
         if 'Incidentes' in wb.sheetnames:
             wb.remove(wb['Incidentes'])
         
         ws_inc = wb.create_sheet(title="Incidentes e Sinistros")
-        
-        # Cabeçalho Oficial Spassu
         ws_inc.merge_cells("A1:I1")
         ws_inc["A1"] = "SPASSU TECNOLOGIA - REGISTRO DE INCIDENTES E SINISTROS"
         ws_inc["A1"].fill = fill_header_roxo
@@ -907,12 +898,12 @@ elif menu == "📥 Exportar Relatórios (Excel)":
                     ws_inc.cell(i_idx, c).border = borda_fina
                 ws_inc.row_dimensions[i_idx].height = 20
 
-        # Auto-ajuste da largura das colunas
+        # 5. Ajuste seguro da largura das colunas
         for sheet in wb.sheetnames:
             ws_curr = wb[sheet]
             for col in ws_curr.columns:
+                col_letter = get_column_letter(col[0].column)
                 max_len = 0
-                col_letter = col[0].column_letter
                 for cell in col:
                     if cell.row > 1 and cell.value:
                         max_len = max(max_len, len(str(cell.value)))
@@ -928,14 +919,14 @@ elif menu == "📥 Exportar Relatórios (Excel)":
         <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 20px; margin-bottom: 20px;">
             <h4 style="color: #38bdf8; margin: 0 0 8px 0;">📊 Relatório Executivo Completo - Identidade Spassu</h4>
             <p style="color: #cbd5e1; font-size: 0.9rem; margin: 0;">
-                O arquivo exportado preserva a formatação original da Spassu Tecnologia, incluindo:
+                O ficheiro exportado preserva a formatação original da Spassu Tecnologia, incluindo:
             </p>
             <ul style="color: #94a3b8; font-size: 0.85rem; margin-top: 8px;">
-                <li><strong>Cadastro de Veículos:</strong> Frota ativa e revisões preventivas.</li>
-                <li><strong>Controle KM Semanal:</strong> Histórico e lançamentos consolidados.</li>
-                <li><strong>Controle Abastecimento:</strong> Litragem, médias de consumo e valores pagos.</li>
-                <li><strong>Dashboards Automatizados:</strong> Fórmulas dinâmicas e indicadores por veículo.</li>
-                <li><strong>Incidentes e Sinistros:</strong> Aba com registro de B.O., fotos e terceiros.</li>
+                <li><strong>Cadastro de Veículos:</strong> Frota ativa e odómetros atualizados.</li>
+                <li><strong>Controle KM Semanal:</strong> Histórico e lançamentos sincronizados.</li>
+                <li><strong>Controle Abastecimento:</strong> Litragem, consumos médios e valores pagos.</li>
+                <li><strong>Dashboards Dinâmicos:</strong> Fórmulas intactas e indicadores por veículo.</li>
+                <li><strong>Incidentes e Sinistros:</strong> Aba com registos de ocorrências e B.O.</li>
             </ul>
         </div>
     """, unsafe_allow_html=True)
