@@ -17,179 +17,187 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ----------------- DESIGN SYSTEM / CSS MODERNO & SIDEBAR -----------------
+# ----------------- DESIGN SYSTEM -----------------
+# Paleta: azul-marinho profundo, superfícies em azul petróleo, acento azul elétrico.
+# Fonte: IBM Plex Sans (institucional, boa leitura de números). Sem sombras: bordas finas.
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
 
-    html, body, [class*="css"] {
-        font-family: 'Plus Jakarta Sans', sans-serif;
+    :root {
+        --bg: #07101d;
+        --surface: #0c1a2e;
+        --raised: #10223a;
+        --line: #1a2f4b;
+        --text: #e7edf6;
+        --muted: #8499b5;
+        --accent: #4c8dff;
+        --accent-d: #2f6fe0;
+        --ok: #3ecf9a;
+        --warn: #f2b84b;
+        --bad: #f0706b;
     }
 
-    /* Fundo da Aplicação */
-    .stApp {
-        background: radial-gradient(circle at 10% 20%, rgba(20, 27, 45, 0.98) 0%, rgba(9, 12, 20, 1) 90%);
-        color: #f1f5f9;
+    .stApp, .stApp p, .stApp label, .stApp input, .stApp textarea,
+    .stApp button, .stApp h1, .stApp h2, .stApp h3, .stApp h4 {
+        font-family: 'IBM Plex Sans', sans-serif;
     }
+    .stApp { background: var(--bg); color: var(--text); }
+    .block-container { padding-top: 2.4rem; max-width: 1240px; }
 
-    /* Barra Lateral Estilizada */
+    /* Remove o ruído do cabeçalho padrão do Streamlit */
+    [data-testid="stHeader"] { background: transparent; }
+    [data-testid="stToolbar"], [data-testid="stDecoration"],
+    [data-testid="stStatusWidget"], [data-testid="stAppDeployButton"],
+    [class*="viewerBadge"], footer { display: none !important; }
+
+    /* ---------- Barra lateral ---------- */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0b1120 0%, #070d19 100%) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.06);
+        background: var(--surface) !important;
+        border-right: 1px solid var(--line);
     }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 6px 0 18px 0;
+             border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+    .brand-mark { width: 34px; height: 34px; border-radius: 6px; background: var(--accent-d);
+                  color: #fff; font-weight: 600; font-size: 0.82rem; letter-spacing: 0.02em;
+                  display: flex; align-items: center; justify-content: center; }
+    .brand-name { color: var(--text); font-weight: 600; font-size: 1rem; line-height: 1.1; }
+    .brand-sub { color: var(--muted); font-size: 0.75rem; }
 
-    /* Esconder marcadores nativos do radio button */
-    section[data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child {
-        display: none !important;
-    }
+    .side-label { color: var(--muted); font-size: 0.78rem; margin: 18px 0 8px 2px; }
+    .side-status { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; margin-top: 8px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
 
-    /* Pílulas de navegação modernos */
+    /* Navegação: lista simples com marcador lateral no item ativo */
+    section[data-testid="stSidebar"] div[role="radiogroup"] { gap: 2px; }
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child { display: none !important; }
     section[data-testid="stSidebar"] div[role="radiogroup"] > label {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 12px;
-        padding: 10px 14px !important;
-        margin-bottom: 7px;
+        width: 100%; padding: 9px 12px !important; margin: 0;
+        border-radius: 6px; border-left: 2px solid transparent;
+        transition: background 0.15s ease;
         cursor: pointer;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex;
-        align-items: center;
-        width: 100%;
     }
-
-    section[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
-        background: rgba(56, 189, 248, 0.08) !important;
-        border-color: rgba(56, 189, 248, 0.3) !important;
-        transform: translateX(4px);
-    }
-
-    /* Item Ativo Selecionado */
-    section[data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="true"],
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:hover { background: rgba(76, 141, 255, 0.07); }
     section[data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checked) {
-        background: linear-gradient(90deg, rgba(37, 99, 235, 0.28) 0%, rgba(56, 189, 248, 0.16) 100%) !important;
-        border: 1px solid rgba(56, 189, 248, 0.45) !important;
-        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+        background: rgba(76, 141, 255, 0.13);
+        border-left-color: var(--accent);
     }
-
     section[data-testid="stSidebar"] div[role="radiogroup"] > label p {
-        font-size: 0.88rem !important;
-        font-weight: 600 !important;
-        color: #e2e8f0 !important;
-        margin: 0 !important;
+        font-size: 0.9rem !important; font-weight: 500 !important; color: var(--muted) !important; margin: 0 !important;
+    }
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checked) p { color: #fff !important; }
+
+    /* ---------- Títulos de página ---------- */
+    .page-header { margin-bottom: 26px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+    .page-header h1 { color: var(--text); font-weight: 600; font-size: 1.7rem; letter-spacing: -0.01em; margin: 0; padding: 0; }
+    .page-header p { color: var(--muted); font-size: 0.92rem; margin: 6px 0 0 0; }
+    .section-title { color: var(--text); font-weight: 600; font-size: 1.08rem; margin: 30px 0 4px 0; }
+    .section-sub { color: var(--muted); font-size: 0.85rem; margin: 0 0 14px 0; }
+
+    /* ---------- Indicadores (faixa única, sem cartões repetidos) ---------- */
+    .kpi-strip { display: grid; grid-template-columns: repeat(4, 1fr);
+                 background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+    .kpi { padding: 20px 24px; border-left: 1px solid var(--line); }
+    .kpi:first-child { border-left: none; }
+    .kpi-label { color: var(--muted); font-size: 0.85rem; margin-bottom: 8px; }
+    .kpi-value { color: var(--text); font-size: 1.75rem; font-weight: 600; letter-spacing: -0.02em;
+                 font-variant-numeric: tabular-nums; }
+    .kpi-value .unit { font-size: 0.95rem; font-weight: 400; color: var(--muted); margin-left: 4px; }
+    .kpi-foot { font-size: 0.8rem; margin-top: 8px; color: var(--muted); }
+    .kpi-foot.ok { color: var(--ok); }
+    .kpi-foot.warn { color: var(--warn); }
+    @media (max-width: 900px) {
+        .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+        .kpi:nth-child(3) { border-left: none; }
+        .kpi:nth-child(n+3) { border-top: 1px solid var(--line); }
     }
 
-    .nav-category {
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #64748b;
-        margin: 16px 0 6px 4px;
-    }
+    /* ---------- Cartões de veículo ---------- */
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+             padding: 20px 22px; margin-bottom: 12px; }
+    .panel.ok { border-left: 3px solid var(--ok); }
+    .panel.warn { border-left: 3px solid var(--warn); }
+    .panel.bad { border-left: 3px solid var(--bad); }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .panel-brand { color: var(--muted); font-size: 0.82rem; }
+    .panel-title { color: var(--text); font-size: 1.12rem; font-weight: 600; margin-bottom: 2px; }
+    .panel-sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 16px; }
+    .panel-sub strong { color: var(--text); font-weight: 500; }
+    .row { display: flex; justify-content: space-between; align-items: baseline;
+           padding: 9px 0; border-top: 1px solid var(--line); font-size: 0.88rem; }
+    .row span { color: var(--muted); }
+    .row strong { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
 
-    .auth-box {
-        background: rgba(15, 23, 42, 0.75);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
-        padding: 12px 14px;
-        margin-bottom: 18px;
-    }
+    /* Placa: o elemento de destaque do sistema (referência à placa Mercosul) */
+    .plate { display: inline-block; background: #f1f4f9; color: #0b1b33;
+             border-top: 4px solid #1d4ed8; border-radius: 4px; padding: 2px 11px 3px 11px;
+             font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 0.92rem; letter-spacing: 0.1em; }
 
-    /* Cards Executivos de Métrica */
-    .metric-card {
-        background: rgba(30, 41, 59, 0.55);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 16px;
-        padding: 20px 22px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35);
-        backdrop-filter: blur(10px);
-        transition: transform 0.2s ease, border-color 0.2s ease;
-    }
-    .metric-card:hover {
-        transform: translateY(-3px);
-        border-color: rgba(99, 102, 241, 0.45);
-    }
-    .metric-title {
-        color: #94a3b8;
-        font-size: 0.82rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        margin-bottom: 6px;
-    }
-    .metric-value {
-        color: #f8fafc;
-        font-size: 1.85rem;
-        font-weight: 800;
-        letter-spacing: -0.02em;
-    }
-    .metric-badge {
-        display: inline-block;
-        padding: 3px 8px;
-        border-radius: 6px;
-        font-size: 0.74rem;
-        font-weight: 600;
-        margin-top: 6px;
-    }
-    .badge-blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-    .badge-green { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
-    .badge-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-    .badge-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
-    .badge-red { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    /* Selos de status */
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+            font-size: 0.78rem; font-weight: 500; border: 1px solid transparent; }
+    .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .pill-ok { color: var(--ok); background: rgba(62, 207, 154, 0.1); border-color: rgba(62, 207, 154, 0.25); }
+    .pill-warn { color: var(--warn); background: rgba(242, 184, 75, 0.1); border-color: rgba(242, 184, 75, 0.25); }
+    .pill-bad { color: var(--bad); background: rgba(240, 112, 107, 0.1); border-color: rgba(240, 112, 107, 0.25); }
+    .pill-info { color: var(--accent); background: rgba(76, 141, 255, 0.1); border-color: rgba(76, 141, 255, 0.25); }
 
-    /* Card dos Veículos */
-    .vehicle-card {
-        background: linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 18px;
-        padding: 22px;
-        box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.4);
-        margin-bottom: 15px;
-    }
-    .vehicle-plate {
-        background: #0f172a;
-        color: #38bdf8;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-weight: 700;
-        font-size: 0.9rem;
-        letter-spacing: 0.08em;
-        border: 1px solid rgba(56, 189, 248, 0.35);
-        display: inline-block;
-    }
+    .callout { background: rgba(76, 141, 255, 0.08); border-left: 3px solid var(--accent);
+               padding: 11px 16px; border-radius: 4px; margin: 14px 0; color: var(--text); font-size: 0.9rem; }
 
-    /* Botões Modernos */
-    div.stButton > button {
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 10px !important;
-        padding: 10px 20px !important;
-        font-weight: 600 !important;
-        transition: all 0.2s ease !important;
-        box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.35) !important;
+    /* ---------- Botões: primário sólido, secundário em contorno, exclusão em vermelho ---------- */
+    div.stButton > button, div[data-testid="stFormSubmitButton"] > button, div.stDownloadButton > button {
+        background: transparent !important; color: var(--text) !important;
+        border: 1px solid var(--line) !important; border-radius: 6px !important;
+        padding: 0.5rem 1.15rem !important; font-weight: 500 !important; box-shadow: none !important;
+        transition: background 0.15s ease, border-color 0.15s ease !important;
     }
-    div.stButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px 0 rgba(37, 99, 235, 0.5) !important;
+    div.stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover, div.stDownloadButton > button:hover {
+        border-color: var(--accent) !important; background: rgba(76, 141, 255, 0.08) !important; color: #fff !important;
     }
+    button[data-testid="stBaseButton-primary"], button[data-testid="stBaseButton-primaryFormSubmit"] {
+        background: var(--accent-d) !important; border-color: var(--accent-d) !important; color: #fff !important;
+    }
+    button[data-testid="stBaseButton-primary"]:hover, button[data-testid="stBaseButton-primaryFormSubmit"]:hover {
+        background: var(--accent) !important; border-color: var(--accent) !important;
+    }
+    div[class*="st-key-danger"] button { color: var(--bad) !important; border-color: rgba(240, 112, 107, 0.4) !important; }
+    div[class*="st-key-danger"] button:hover { background: rgba(240, 112, 107, 0.1) !important; border-color: var(--bad) !important; color: var(--bad) !important; }
+    div.stButton > button:disabled { opacity: 0.4 !important; }
 
-    /* Formulários */
-    div[data-testid="stForm"] {
-        background: rgba(30, 41, 59, 0.4);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 16px;
-        padding: 24px;
-        backdrop-filter: blur(8px);
-    }
-    
-    div[data-testid="stDataFrame"] {
-        border-radius: 12px;
-        overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
+    /* ---------- Formulários, campos, abas, tabelas ---------- */
+    div[data-testid="stForm"] { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 24px; }
+    div[data-baseweb="input"], div[data-baseweb="select"] > div, div[data-baseweb="textarea"] { border-radius: 6px !important; }
+    div[data-testid="stDataFrame"] { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    div[data-testid="stExpander"] { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+    div[data-testid="stMetric"] { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 20px; }
+    button[data-baseweb="tab"] { font-weight: 500; }
+    div[data-testid="stAlert"] { border-radius: 8px; }
+    hr { border-color: var(--line) !important; }
 </style>
 """, unsafe_allow_html=True)
+
+# ----------------- FUNÇÕES DE APOIO (INTERFACE) -----------------
+def render(html):
+    """Renderiza HTML sem que a indentação vire bloco de código no Markdown."""
+    st.markdown(" ".join(l.strip() for l in html.strip().splitlines()), unsafe_allow_html=True)
+
+def page_header(titulo, subtitulo=""):
+    sub = f"<p>{subtitulo}</p>" if subtitulo else ""
+    render(f'<div class="page-header"><h1>{titulo}</h1>{sub}</div>')
+
+def section(titulo, subtitulo=""):
+    sub = f'<p class="section-sub">{subtitulo}</p>' if subtitulo else ""
+    render(f'<div class="section-title">{titulo}</div>{sub}')
+
+def pill(texto, tom="info"):
+    return f'<span class="pill pill-{tom}">{texto}</span>'
+
+def fmt_int(n):
+    return f"{int(n):,}".replace(",", ".")
+
+def fmt_brl(v):
+    return "R$ " + f"{float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # ----------------- BANCO DE DADOS & CREDENCIAIS -----------------
 GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "")
@@ -214,7 +222,7 @@ def extrair_dados_imagem(image_file, prompt_tipo="hodometro"):
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
         img = Image.open(image_file)
-        
+
         if prompt_tipo == "hodometro":
             prompt = (
                 "Analise a foto deste painel de veículo e extraia apenas o valor da quilometragem atual (hodômetro total). "
@@ -240,7 +248,7 @@ def extrair_dados_imagem(image_file, prompt_tipo="hodometro"):
                 "\"dados_terceiros\": \"Nome, contacto, matrícula/placa e modelo do outro veículo se houver\""
                 "}"
             )
-            
+
         for model_name in ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']:
             try:
                 response = client.models.generate_content(
@@ -291,84 +299,64 @@ def carregar_historico_excel():
 
 mes_ano_atual = datetime.date.today().strftime("%Y-%m")
 
-# ----------------- SIDEBAR ULTRA MODERNA -----------------
+# ----------------- BARRA LATERAL -----------------
+MENU_GESTOR = [
+    "Dashboard Executivo",
+    "Gerenciamento da Frota",
+    "Gestão de Incidentes",
+    "Estorno de Lançamentos",
+    "Histórico de KM e Rotas",
+    "Exportar Relatórios",
+    "Novo Lançamento",
+    "Registro de Abastecimento",
+    "Registrar Incidente",
+    "Alertas de Manutenção",
+]
+MENU_TECNICO = [
+    "Novo Lançamento",
+    "Registro de Abastecimento",
+    "Registrar Incidente",
+    "Alertas de Manutenção",
+]
+
 with st.sidebar:
-    st.markdown("""
-        <div style="padding: 10px 0 15px 0; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 15px;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%); width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);">
-                    🚗
-                </div>
-                <div>
-                    <h2 style="margin: 0; color: #f8fafc; font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em;">SPASSU FROTA</h2>
-                    <span style="display: inline-block; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 0.68rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-top: 2px;">PMVV</span>
-                </div>
+    render("""
+        <div class="brand">
+            <div class="brand-mark">SF</div>
+            <div>
+                <div class="brand-name">Frota Spassu</div>
+                <div class="brand-sub">PMVV</div>
             </div>
         </div>
-    """, unsafe_allow_html=True)
+    """)
 
-    st.markdown('<div class="auth-box">', unsafe_allow_html=True)
-    senha_gestor = st.text_input("Credencial de Gestão", type="password", placeholder="Chave de acesso...", label_visibility="collapsed")
+    st.markdown('<div class="side-label">Acesso de gestão</div>', unsafe_allow_html=True)
+    senha_gestor = st.text_input("Credencial de Gestão", type="password", placeholder="Chave de acesso", label_visibility="collapsed")
     is_admin = bool(senha_gestor and senha_gestor == ADMIN_PASSWORD)
 
     if is_admin:
-        st.markdown("""
-            <div style="display: flex; align-items: center; gap: 6px; margin-top: 8px;">
-                <span style="height: 8px; width: 8px; background-color: #22c55e; border-radius: 50%; box-shadow: 0 0 8px #22c55e;"></span>
-                <span style="color: #4ade80; font-size: 0.75rem; font-weight: 600;">Modo Gestor Desbloqueado</span>
-            </div>
-        """, unsafe_allow_html=True)
-        menu_opcoes = [
-            "📊 Dashboard Executivo",
-            "🚘 Gerenciamento da Frota",
-            "🚨 Gestão de Incidentes",
-            "↩️ Estorno de Lançamentos",
-            "📑 Histórico de KM e Rotas",
-            "📥 Exportar Relatórios (Excel)",
-            "📋 Novo Lançamento (Técnico)", 
-            "⛽ Registro de Abastecimento", 
-            "🚨 Registrar Incidente / Ocorrência",
-            "🛠️ Alertas de Manutenção"
-        ]
+        render('<div class="side-status"><span class="dot" style="background: var(--ok);"></span><span style="color: var(--ok);">Gestor autenticado</span></div>')
+        menu_opcoes = MENU_GESTOR
     else:
         if senha_gestor:
-            st.markdown("""
-                <div style="display: flex; align-items: center; gap: 6px; margin-top: 8px;">
-                    <span style="height: 8px; width: 8px; background-color: #ef4444; border-radius: 50%;"></span>
-                    <span style="color: #f87171; font-size: 0.75rem; font-weight: 600;">Credencial Inválida</span>
-                </div>
-            """, unsafe_allow_html=True)
+            render('<div class="side-status"><span class="dot" style="background: var(--bad);"></span><span style="color: var(--bad);">Credencial inválida</span></div>')
         else:
-            st.markdown("""
-                <div style="color: #64748b; font-size: 0.72rem; margin-top: 6px;">
-                    🔒 Insira a senha para desbloquear os relatórios executivos.
-                </div>
-            """, unsafe_allow_html=True)
-        menu_opcoes = [
-            "📋 Novo Lançamento (Técnico)", 
-            "⛽ Registro de Abastecimento", 
-            "🚨 Registrar Incidente / Ocorrência",
-            "🛠️ Alertas de Manutenção"
-        ]
-    st.markdown('</div>', unsafe_allow_html=True)
+            render('<div class="side-status" style="color: var(--muted);">Informe a credencial para liberar os relatórios executivos.</div>')
+        menu_opcoes = MENU_TECNICO
 
-    st.markdown('<p class="nav-category">Navegação Principal</p>', unsafe_allow_html=True)
+    st.markdown('<div class="side-label">Navegação</div>', unsafe_allow_html=True)
     menu = st.radio("Módulos", menu_opcoes, label_visibility="collapsed")
 
-    st.markdown("""
-        <div style="margin-top: 35px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center;">
-            <span style="font-size: 0.72rem; color: #475569;">🟢 Nuvem Supabase Ativa • v2.9</span>
+    render("""
+        <div style="margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--line);
+                    display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--muted);">
+            <span class="dot" style="background: var(--ok);"></span>Supabase conectado &nbsp;·&nbsp; v3.0
         </div>
-    """, unsafe_allow_html=True)
+    """)
 
 # ----------------- 1. DASHBOARD EXECUTIVO (GESTOR) -----------------
-if menu == "📊 Dashboard Executivo":
-    st.markdown("""
-        <div style="margin-bottom: 25px;">
-            <h1 style="color: #f8fafc; font-weight: 800; font-size: 2.2rem; margin-bottom: 4px;">Painel de Controle Executivo</h1>
-            <p style="color: #94a3b8; font-size: 0.95rem;">Monitoramento integrado de quilometragem, cotas e manutenção em tempo real.</p>
-        </div>
-    """, unsafe_allow_html=True)
+if menu == "Dashboard Executivo":
+    page_header("Painel de controle executivo", "Quilometragem, cotas de combustível e manutenção da frota em tempo real.")
 
     df_v = carregar_veiculos()
     saldos = carregar_saldos(mes_ano_atual)
@@ -432,110 +420,82 @@ if menu == "📊 Dashboard Executivo":
         mes_rodado = df_supa_km[df_supa_km["dt"].dt.strftime("%Y-%m") == mes_ano_atual]["km_percorrido"].sum()
         km_mes += mes_rodado
 
-    # CARDS SUPERIORES
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-title">Odômetro Geral</div>
-                <div class="metric-value">{total_km_frota:,} <span style="font-size: 1rem; color: #94a3b8;">km</span></div>
-                <span class="metric-badge badge-blue">Total Consolidado</span>
+    pct_restante = (saldo_total_cartoes / teto_total * 100) if teto_total > 0 else 0
+    pct_tom = "ok" if pct_restante >= 40 else "warn"
+
+    # Indicadores em uma única faixa
+    render(f"""
+        <div class="kpi-strip">
+            <div class="kpi">
+                <div class="kpi-label">Odômetro geral</div>
+                <div class="kpi-value">{fmt_int(total_km_frota)}<span class="unit">km</span></div>
+                <div class="kpi-foot">Total consolidado da frota</div>
             </div>
-        """.replace(",", "."), unsafe_allow_html=True)
-
-    with col2:
-        st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-title">Rodagem do Mês</div>
-                <div class="metric-value">{int(km_mes):,} <span style="font-size: 1rem; color: #94a3b8;">km</span></div>
-                <span class="metric-badge badge-purple">Mês Ref: {mes_ano_atual}</span>
+            <div class="kpi">
+                <div class="kpi-label">Rodagem do mês</div>
+                <div class="kpi-value">{fmt_int(km_mes)}<span class="unit">km</span></div>
+                <div class="kpi-foot">Referência {mes_ano_atual}</div>
             </div>
-        """.replace(",", "."), unsafe_allow_html=True)
-
-    with col3:
-        st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-title">Consumo de Cotas</div>
-                <div class="metric-value">R$ {gasto_total_mes:,.2f}</div>
-                <span class="metric-badge badge-amber">Teto: R$ {teto_total:,.2f}</span>
+            <div class="kpi">
+                <div class="kpi-label">Consumo de cotas</div>
+                <div class="kpi-value">{fmt_brl(gasto_total_mes)}</div>
+                <div class="kpi-foot">Teto mensal {fmt_brl(teto_total)}</div>
             </div>
-        """, unsafe_allow_html=True)
-
-    with col4:
-        pct_restante = (saldo_total_cartoes / teto_total * 100) if teto_total > 0 else 0
-        st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-title">Saldo Disponível</div>
-                <div class="metric-value">R$ {saldo_total_cartoes:,.2f}</div>
-                <span class="metric-badge badge-green">{pct_restante:.1f}% Disponível</span>
+            <div class="kpi">
+                <div class="kpi-label">Saldo disponível</div>
+                <div class="kpi-value">{fmt_brl(saldo_total_cartoes)}</div>
+                <div class="kpi-foot {pct_tom}">{pct_restante:.1f}% do teto disponível</div>
             </div>
-        """, unsafe_allow_html=True)
+        </div>
+    """)
 
-    st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
-
-    # MONITOR DOS VEÍCULOS
-    st.markdown("<h3 style='color: #f8fafc; font-weight: 700; margin-bottom: 15px;'>🚗 Monitor Individual dos Veículos e Cartões</h3>", unsafe_allow_html=True)
+    section("Veículos e cartões", "Situação individual de odômetro e saldo do cartão de combustível.")
     cols_v = st.columns(len(df_v) if len(df_v) > 0 else 1)
-    
-    for i, row in df_v.iterrows():
+
+    for i, (_, row) in enumerate(df_v.iterrows()):
         placa = row["placa"]
         saldo = saldos.get(placa, VALOR_CARGA_MENSAL)
         pct = (saldo / VALOR_CARGA_MENSAL) * 100
 
+        if pct >= 40:
+            tom, rotulo = "ok", "Saldo normal"
+        elif pct >= 20:
+            tom, rotulo = "warn", "Atenção ao saldo"
+        else:
+            tom, rotulo = "bad", "Saldo crítico"
+
         with cols_v[i]:
-            status_cor = "#22c55e" if pct >= 40 else ("#f59e0b" if pct >= 20 else "#ef4444")
-            st.markdown(f"""
-                <div class="vehicle-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <span class="vehicle-plate">{placa}</span>
-                        <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600;">{row['marca']}</span>
+            render(f"""
+                <div class="panel">
+                    <div class="panel-head">
+                        <span class="plate">{placa}</span>
+                        <span class="panel-brand">{row['marca']}</span>
                     </div>
-                    <div style="font-size: 1.2rem; font-weight: 700; color: #ffffff; margin-bottom: 4px;">{row['modelo']}</div>
-                    <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 14px;">Condutor: <strong style="color: #cbd5e1;">{row['tecnico']}</strong></div>
-                    <div style="background: rgba(15, 23, 42, 0.6); padding: 10px 14px; border-radius: 10px; margin-bottom: 12px;">
-                        <div style="font-size: 0.75rem; color: #94a3b8;">Odômetro Atual</div>
-                        <div style="font-size: 1.1rem; font-weight: 700; color: #38bdf8;">{row['km_atual']:,} km</div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;">
-                        <span style="color: #94a3b8;">Saldo Cartão:</span>
-                        <strong style="color: {status_cor};">R$ {saldo:,.2f}</strong>
-                    </div>
+                    <div class="panel-title">{row['modelo']}</div>
+                    <div class="panel-sub">Condutor: <strong>{row['tecnico']}</strong></div>
+                    <div class="row"><span>Odômetro atual</span><strong>{fmt_int(row['km_atual'])} km</strong></div>
+                    <div class="row"><span>Saldo do cartão</span><strong>{fmt_brl(saldo)}</strong></div>
+                    <div style="margin-top: 10px;">{pill(rotulo, tom)}</div>
                 </div>
-            """.replace(",", "."), unsafe_allow_html=True)
+            """)
             st.progress(max(0.0, min(1.0, saldo / VALOR_CARGA_MENSAL)))
 
-    st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
-
-    # TABELA COM ROLAGEM VERTICAL
-    st.markdown("""
-        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
-            <div>
-                <h3 style="color: #f8fafc; font-weight: 700; margin: 0;">📋 Controle de Quilometragem Semanal</h3>
-                <p style="color: #94a3b8; font-size: 0.85rem; margin: 4px 0 0 0;">Histórico de rodagem completo integrado com a base de dados.</p>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
+    section("Controle de quilometragem semanal", "Histórico de rodagem integrado com a base de dados.")
     if not df_consolidado.empty:
-        st.dataframe(
-            df_consolidado,
-            use_container_width=True,
-            height=420,
-            hide_index=True
-        )
+        st.dataframe(df_consolidado, use_container_width=True, height=420, hide_index=True)
     else:
         st.info("Nenhum dado encontrado para exibição.")
 
 # ----------------- 2. GERENCIAMENTO DA FROTA (GESTOR) -----------------
-elif menu == "🚘 Gerenciamento da Frota":
-    st.markdown("<h1>🚘 Gerenciamento da Frota (Editar, Cadastrar e Excluir)</h1>", unsafe_allow_html=True)
+elif menu == "Gerenciamento da Frota":
+    page_header("Gerenciamento da frota", "Edite, cadastre e remova veículos.")
     df_v = carregar_veiculos()
-    tab_edit, tab_novo = st.tabs(["✏️ Editar Veículo Existente", "➕ Adicionar Novo Veículo"])
-    
+    tab_edit, tab_novo = st.tabs(["Editar veículo", "Adicionar veículo"])
+
     with tab_edit:
         if not df_v.empty:
             veic_escolhido = st.selectbox(
-                "Selecione o Veículo para Modificar",
+                "Selecione o veículo para modificar",
                 df_v["placa"].tolist(),
                 format_func=lambda x: f"{x} - {df_v[df_v['placa']==x]['modelo'].values[0]} ({df_v[df_v['placa']==x]['tecnico'].values[0]})"
             )
@@ -546,13 +506,13 @@ elif menu == "🚘 Gerenciamento da Frota":
                 with col1:
                     novo_modelo = st.text_input("Modelo / Apelido", value=v_info["modelo"])
                     nova_marca = st.text_input("Marca / Fabricante", value=v_info["marca"])
-                    novo_tecnico = st.text_input("Técnico Responsável", value=v_info["tecnico"])
+                    novo_tecnico = st.text_input("Técnico responsável", value=v_info["tecnico"])
                 with col2:
-                    novo_km = st.number_input("Odômetro Atual (KM)", min_value=0, value=int(v_info["km_atual"]))
-                    nova_rev = st.number_input("Próxima Revisão (KM)", min_value=0, value=int(v_info["proxima_revisao"]))
-                    ultima_rev = st.text_input("Última Revisão", value=v_info["ultima_revisao"])
+                    novo_km = st.number_input("Odômetro atual (km)", min_value=0, value=int(v_info["km_atual"]))
+                    nova_rev = st.number_input("Próxima revisão (km)", min_value=0, value=int(v_info["proxima_revisao"]))
+                    ultima_rev = st.text_input("Última revisão", value=v_info["ultima_revisao"])
 
-                salvar_edicao = st.form_submit_button("💾 Salvar Alterações")
+                salvar_edicao = st.form_submit_button("Salvar alterações", type="primary")
                 if salvar_edicao:
                     supabase.table("veiculos").update({
                         "modelo": novo_modelo,
@@ -562,8 +522,8 @@ elif menu == "🚘 Gerenciamento da Frota":
                         "proxima_revisao": int(nova_rev),
                         "ultima_revisao": ultima_rev
                     }).eq("placa", veic_escolhido).execute()
-                    st.toast(f"Veículo {veic_escolhido} atualizado!", icon="🚗")
-                    st.success(f"Veículo `{veic_escolhido}` atualizado com sucesso!")
+                    st.toast(f"Veículo {veic_escolhido} atualizado.")
+                    st.success(f"Veículo `{veic_escolhido}` atualizado com sucesso.")
                     st.rerun()
         else:
             st.info("Nenhum veículo cadastrado para edição.")
@@ -572,15 +532,15 @@ elif menu == "🚘 Gerenciamento da Frota":
         with st.form("form_novo_veiculo"):
             col1, col2 = st.columns(2)
             with col1:
-                cad_placa = st.text_input("Placa do Novo Veículo (Ex: ABC-1D23)").upper().strip()
-                cad_modelo = st.text_input("Modelo (Ex: Fiat Strada Branca)")
-                cad_marca = st.text_input("Marca (Ex: Fiat)")
+                cad_placa = st.text_input("Placa do novo veículo (ex: ABC-1D23)").upper().strip()
+                cad_modelo = st.text_input("Modelo (ex: Fiat Strada Branca)")
+                cad_marca = st.text_input("Marca (ex: Fiat)")
             with col2:
-                cad_tecnico = st.text_input("Técnico / Motorista Responsável")
-                cad_km = st.number_input("KM Inicial", min_value=0, value=0)
-                cad_rev = st.number_input("KM da 1ª Revisão", min_value=1000, value=10000)
+                cad_tecnico = st.text_input("Técnico / motorista responsável")
+                cad_km = st.number_input("KM inicial", min_value=0, value=0)
+                cad_rev = st.number_input("KM da 1ª revisão", min_value=1000, value=10000)
 
-            cadastrar = st.form_submit_button("➕ Cadastrar Veículo")
+            cadastrar = st.form_submit_button("Cadastrar veículo", type="primary")
             if cadastrar:
                 if not cad_placa:
                     st.error("Informe a placa do veículo.")
@@ -600,19 +560,13 @@ elif menu == "🚘 Gerenciamento da Frota":
                         "cota_mensal": VALOR_CARGA_MENSAL,
                         "saldo_atual": VALOR_CARGA_MENSAL
                     }).execute()
-                    st.toast(f"Novo veículo {cad_placa} cadastrado!", icon="🎉")
-                    st.success(f"Veículo `{cad_placa}` adicionado com sucesso!")
+                    st.toast(f"Veículo {cad_placa} cadastrado.")
+                    st.success(f"Veículo `{cad_placa}` adicionado com sucesso.")
                     st.rerun()
 
-    # --- LISTAGEM E EXCLUSÃO DE VEÍCULOS ABAIXO DOS FORMULÁRIOS ---
-    st.markdown("<div style='height: 30px;'></div>", unsafe_allow_html=True)
+    # --- LISTAGEM E EXCLUSÃO DE VEÍCULOS ---
     st.divider()
-    st.markdown("""
-        <div style="margin-bottom: 15px;">
-            <h3 style="color: #f8fafc; font-weight: 700; margin: 0;">📋 Veículos Cadastrados na Frota</h3>
-            <p style="color: #94a3b8; font-size: 0.85rem; margin: 4px 0 0 0;">Gerencie ou remova carros antigos ao substituir por novas unidades.</p>
-        </div>
-    """, unsafe_allow_html=True)
+    section("Veículos cadastrados", "Gerencie ou remova carros antigos ao substituir por novas unidades.")
 
     df_v_atual = carregar_veiculos()
     if not df_v_atual.empty:
@@ -622,86 +576,85 @@ elif menu == "🚘 Gerenciamento da Frota":
             hide_index=True
         )
 
-        st.markdown("<h4 style='color: #f8fafc; font-weight: 600; margin-top: 20px;'>🗑️ Ações de Exclusão / Desativação</h4>", unsafe_allow_html=True)
+        section("Exclusão de veículos", "A exclusão remove também o saldo do cartão e não pode ser desfeita.")
 
         for _, v_row in df_v_atual.iterrows():
             placa_v = v_row["placa"]
-            with st.expander(f"🚗 {placa_v} - {v_row['modelo']} ({v_row['tecnico']})"):
+            with st.expander(f"{placa_v} - {v_row['modelo']} ({v_row['tecnico']})"):
                 col_info, col_del = st.columns([3, 1])
                 with col_info:
-                    st.write(f"**Marca:** {v_row['marca']} | **Odômetro Atual:** {int(v_row['km_atual']):,} km".replace(",", "."))
-                    st.write(f"**Próxima Revisão:** {int(v_row['proxima_revisao']):,} km | **Última:** {v_row['ultima_revisao']}".replace(",", "."))
+                    st.write(f"**Marca:** {v_row['marca']} | **Odômetro atual:** {fmt_int(v_row['km_atual'])} km")
+                    st.write(f"**Próxima revisão:** {fmt_int(v_row['proxima_revisao'])} km | **Última:** {v_row['ultima_revisao']}")
                 with col_del:
                     confirma = st.checkbox("Confirmar exclusão", key=f"chk_del_{placa_v}")
-                    if st.button(f"🗑️ Excluir {placa_v}", key=f"btn_del_v_{placa_v}", disabled=not confirma):
+                    if st.button(f"Excluir {placa_v}", key=f"danger_del_v_{placa_v}", disabled=not confirma):
                         supabase.table("cartoes_saldo").delete().eq("placa", placa_v).execute()
                         supabase.table("veiculos").delete().eq("placa", placa_v).execute()
-                        st.toast(f"Veículo {placa_v} removido com sucesso!", icon="🗑️")
+                        st.toast(f"Veículo {placa_v} removido.")
                         st.success(f"Veículo `{placa_v}` foi removido da frota.")
                         st.rerun()
     else:
         st.info("Nenhum veículo cadastrado no momento.")
 
-# ----------------- NOVO: GESTÃO DE INCIDENTES (GESTOR) -----------------
-elif menu == "🚨 Gestão de Incidentes":
-    st.markdown("<h1>🚨 Gestão de Incidentes e Sinistros</h1>", unsafe_allow_html=True)
-    st.caption("Acompanhamento das ocorrências, sinistros, multas e avarias registradas pelos condutores.")
+# ----------------- GESTÃO DE INCIDENTES (GESTOR) -----------------
+elif menu == "Gestão de Incidentes":
+    page_header("Gestão de incidentes e sinistros", "Ocorrências, sinistros, multas e avarias registradas pelos condutores.")
 
     res_inc = supabase.table("incidentes").select("*").order("data_hora", desc=True).execute()
     df_inc = pd.DataFrame(res_inc.data) if res_inc.data else pd.DataFrame()
 
     if not df_inc.empty:
         col1, col2, col3 = st.columns(3)
-        col1.metric("Total de Ocorrências", len(df_inc))
-        col2.metric("Colisões / Avarias", len(df_inc[df_inc["tipo_incidente"].str.contains("Colisão|Avaria", na=False)]))
-        col3.metric("Multas / Infrações", len(df_inc[df_inc["tipo_incidente"].str.contains("Multa", na=False)]))
+        col1.metric("Total de ocorrências", len(df_inc))
+        col2.metric("Colisões / avarias", len(df_inc[df_inc["tipo_incidente"].str.contains("Colisão|Avaria", na=False)]))
+        col3.metric("Multas / infrações", len(df_inc[df_inc["tipo_incidente"].str.contains("Multa", na=False)]))
 
         st.divider()
         st.dataframe(df_inc, use_container_width=True, hide_index=True)
 
-        st.markdown("<h3 style='color: #f8fafc; font-weight: 700; margin-top: 20px;'>📋 Detalhes dos Incidentes</h3>", unsafe_allow_html=True)
+        section("Detalhes dos incidentes")
         for _, row_inc in df_inc.iterrows():
-            with st.expander(f"🚨 {row_inc['tipo_incidente']} | Placa: {row_inc['placa']} | Data: {row_inc['data_hora'][:16]}"):
+            with st.expander(f"{row_inc['tipo_incidente']} | Placa: {row_inc['placa']} | Data: {row_inc['data_hora'][:16]}"):
                 c1, c2 = st.columns(2)
                 with c1:
                     st.write(f"**Condutor:** {row_inc['tecnico']}")
-                    st.write(f"**CNH do Condutor:** {row_inc.get('cnh_condutor', 'Não informado')}")
+                    st.write(f"**CNH do condutor:** {row_inc.get('cnh_condutor', 'Não informado')}")
                     st.write(f"**Número do B.O.:** {row_inc.get('numero_bo', 'Não gerado')}")
                     st.write(f"**Local:** {row_inc.get('local_ocorrencia', 'Não informado')}")
                 with c2:
-                    st.write(f"**Houve Terceiros Envolvidos:** {'Sim' if row_inc.get('houve_terceiros') else 'Não'}")
+                    st.write(f"**Houve terceiros envolvidos:** {'Sim' if row_inc.get('houve_terceiros') else 'Não'}")
                     if row_inc.get('houve_terceiros'):
-                        st.write(f"**Dados de Terceiros:** {row_inc.get('dados_terceiros', 'Não informado')}")
-                    st.write(f"**Status da Análise:** `{row_inc.get('status', 'Pendente')}`")
-                
-                st.info(f"**Descrição do Ocorrido:**\n\n{row_inc['descricao']}")
-                
-                if st.button(f"🗑️ Excluir Ocorrência #{row_inc['id']}", key=f"del_inc_{row_inc['id']}"):
+                        st.write(f"**Dados de terceiros:** {row_inc.get('dados_terceiros', 'Não informado')}")
+                    st.write(f"**Status da análise:** `{row_inc.get('status', 'Pendente')}`")
+
+                st.info(f"**Descrição do ocorrido:**\n\n{row_inc['descricao']}")
+
+                if st.button(f"Excluir ocorrência #{row_inc['id']}", key=f"danger_del_inc_{row_inc['id']}"):
                     supabase.table("incidentes").delete().eq("id", row_inc['id']).execute()
-                    st.toast(f"Incidente #{row_inc['id']} excluído!", icon="🗑️")
+                    st.toast(f"Incidente #{row_inc['id']} excluído.")
                     st.rerun()
     else:
         st.info("Nenhuma ocorrência ou incidente registrado na frota.")
 
 # ----------------- 3. ESTORNO DE LANÇAMENTOS (GESTOR) -----------------
-elif menu == "↩️ Estorno de Lançamentos":
-    st.markdown("<h1>↩️ Estorno / Cancelamento de Lançamentos Recentes</h1>", unsafe_allow_html=True)
-    tab_abast, tab_km_canc = st.tabs(["⛽ Últimos Abastecimentos", "🛣️ Últimos Registros de KM"])
+elif menu == "Estorno de Lançamentos":
+    page_header("Estorno de lançamentos", "Cancele abastecimentos e registros de quilometragem recentes.")
+    tab_abast, tab_km_canc = st.tabs(["Últimos abastecimentos", "Últimos registros de KM"])
 
     with tab_abast:
         res_ab = supabase.table("abastecimentos").select("*").order("id", desc=True).limit(5).execute()
         if res_ab.data:
             for item in res_ab.data:
-                with st.expander(f"⛽ {item['data_abastecimento']} | Placa: {item['placa']} | R$ {float(item['valor_total']):,.2f} ({item['posto']})"):
-                    st.write(f"**Técnico:** {item['tecnico']} | **Litros:** {item['litros']}L | **KM:** {item['km_atual']}")
-                    if st.button(f"🗑️ Excluir e Estornar R$ {float(item['valor_total']):,.2f}", key=f"del_ab_{item['id']}"):
+                with st.expander(f"{item['data_abastecimento']} | Placa: {item['placa']} | {fmt_brl(item['valor_total'])} ({item['posto']})"):
+                    st.write(f"**Técnico:** {item['tecnico']} | **Litros:** {item['litros']} L | **KM:** {item['km_atual']}")
+                    if st.button(f"Excluir e estornar {fmt_brl(item['valor_total'])}", key=f"danger_del_ab_{item['id']}"):
                         saldos = carregar_saldos(mes_ano_atual)
                         saldo_atual = saldos.get(item['placa'], VALOR_CARGA_MENSAL)
                         novo_saldo = min(VALOR_CARGA_MENSAL, saldo_atual + float(item['valor_total']))
-                        
+
                         supabase.table("cartoes_saldo").update({"saldo_atual": novo_saldo}).eq("placa", item['placa']).eq("mes_ano", mes_ano_atual).execute()
                         supabase.table("abastecimentos").delete().eq("id", item['id']).execute()
-                        st.toast("Abastecimento removido e saldo estornado!", icon="🗑️")
+                        st.toast("Abastecimento removido e saldo estornado.")
                         st.rerun()
         else:
             st.info("Nenhum abastecimento recente.")
@@ -710,21 +663,21 @@ elif menu == "↩️ Estorno de Lançamentos":
         res_k = supabase.table("registros_km").select("*").order("id", desc=True).limit(5).execute()
         if res_k.data:
             for item in res_k.data:
-                with st.expander(f"🛣️ {item['data_registro']} | Placa: {item['placa']} | Rodou: {item['km_percorrido']} km (Final: {item['km_final']})"):
+                with st.expander(f"{item['data_registro']} | Placa: {item['placa']} | Rodou: {item['km_percorrido']} km (final: {item['km_final']})"):
                     st.write(f"**Técnico:** {item['tecnico']} | **Rota:** {item['rota']}")
-                    if st.button(f"🗑️ Excluir Registro #{item['id']}", key=f"del_km_{item['id']}"):
+                    if st.button(f"Excluir registro #{item['id']}", key=f"danger_del_km_{item['id']}"):
                         supabase.table("registros_km").delete().eq("id", item['id']).execute()
                         rest_max = supabase.table("registros_km").select("km_final").eq("placa", item['placa']).order("km_final", desc=True).limit(1).execute()
                         if rest_max.data:
                             supabase.table("veiculos").update({"km_atual": rest_max.data[0]["km_final"]}).eq("placa", item['placa']).execute()
-                        st.toast("Registro de KM excluído!", icon="🗑️")
+                        st.toast("Registro de KM excluído.")
                         st.rerun()
         else:
             st.info("Nenhum registro de KM recente.")
 
 # ----------------- 4. HISTÓRICO DE KM (GESTOR) -----------------
-elif menu == "📑 Histórico de KM e Rotas":
-    st.markdown("<h1>📑 Histórico Consolidado de KM e Rotas</h1>", unsafe_allow_html=True)
+elif menu == "Histórico de KM e Rotas":
+    page_header("Histórico de KM e rotas", "Todos os registros de quilometragem lançados pelos condutores.")
     res = supabase.table("registros_km").select("*").order("created_at", desc=True).execute()
     df = pd.DataFrame(res.data)
     if not df.empty:
@@ -733,9 +686,8 @@ elif menu == "📑 Histórico de KM e Rotas":
         st.info("Nenhum registro lançado ainda.")
 
 # ----------------- 5. EXPORTAR RELATÓRIOS (GESTOR) -----------------
-elif menu == "📥 Exportar Relatórios (Excel)":
-    st.markdown("<h1>📥 Exportação Consolidada de Relatórios</h1>", unsafe_allow_html=True)
-    st.caption("Gere a planilha completa compatível com Microsoft Excel contendo todas as abas, fórmulas e a identidade visual oficial da Spassu.")
+elif menu == "Exportar Relatórios":
+    page_header("Exportação de relatórios", "Planilha completa em Excel com todas as abas, fórmulas e a identidade visual oficial da Spassu.")
 
     df_v = carregar_veiculos()
     res_km = supabase.table("registros_km").select("*").order("data_registro", desc=False).execute()
@@ -751,7 +703,7 @@ elif menu == "📥 Exportar Relatórios (Excel)":
 
     def gerar_planilha_oficial_spassu():
         nome_template = "Gestao_Frota_Spassu_PMVV_Atualizada.xlsx"
-        
+
         if os.path.exists(nome_template):
             wb = openpyxl.load_workbook(nome_template)
         else:
@@ -860,7 +812,7 @@ elif menu == "📥 Exportar Relatórios (Excel)":
         # 4. Aba de Incidentes e Sinistros
         if 'Incidentes' in wb.sheetnames:
             wb.remove(wb['Incidentes'])
-        
+
         ws_inc = wb.create_sheet(title="Incidentes e Sinistros")
         ws_inc.merge_cells("A1:I1")
         ws_inc["A1"] = "SPASSU TECNOLOGIA - REGISTRO DE INCIDENTES E SINISTROS"
@@ -887,7 +839,7 @@ elif menu == "📥 Exportar Relatórios (Excel)":
                 ws_inc.cell(i_idx, 6, inc.get('cnh_condutor', 'N/D'))
                 ws_inc.cell(i_idx, 7, inc.get('numero_bo', 'N/D'))
                 ws_inc.cell(i_idx, 8, inc.get('local_ocorrencia', 'N/D'))
-                
+
                 desc_completa = inc.get('descricao', '')
                 if inc.get('houve_terceiros'):
                     desc_completa += f" | TERCEIROS: {inc.get('dados_terceiros', '')}"
@@ -915,64 +867,60 @@ elif menu == "📥 Exportar Relatórios (Excel)":
 
     dados_planilha_oficial = gerar_planilha_oficial_spassu()
 
-    st.markdown("""
-        <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 20px; margin-bottom: 20px;">
-            <h4 style="color: #38bdf8; margin: 0 0 8px 0;">📊 Relatório Executivo Completo - Identidade Spassu</h4>
-            <p style="color: #cbd5e1; font-size: 0.9rem; margin: 0;">
-                O ficheiro exportado preserva a formatação original da Spassu Tecnologia, incluindo:
-            </p>
-            <ul style="color: #94a3b8; font-size: 0.85rem; margin-top: 8px;">
-                <li><strong>Cadastro de Veículos:</strong> Frota ativa e odómetros atualizados.</li>
-                <li><strong>Controle KM Semanal:</strong> Histórico e lançamentos sincronizados.</li>
-                <li><strong>Controle Abastecimento:</strong> Litragem, consumos médios e valores pagos.</li>
-                <li><strong>Dashboards Dinâmicos:</strong> Fórmulas intactas e indicadores por veículo.</li>
-                <li><strong>Incidentes e Sinistros:</strong> Aba com registos de ocorrências e B.O.</li>
-            </ul>
+    render("""
+        <div class="panel">
+            <div class="panel-title">Relatório executivo completo</div>
+            <div class="panel-sub">O arquivo exportado preserva a formatação original da Spassu Tecnologia.</div>
+            <div class="row"><span>Cadastro de Veículos</span><strong>Frota ativa e odômetros atualizados</strong></div>
+            <div class="row"><span>Controle KM Semanal</span><strong>Histórico e lançamentos sincronizados</strong></div>
+            <div class="row"><span>Controle Abastecimento</span><strong>Litragem, consumo médio e valores pagos</strong></div>
+            <div class="row"><span>Dashboards</span><strong>Fórmulas intactas e indicadores por veículo</strong></div>
+            <div class="row"><span>Incidentes e Sinistros</span><strong>Ocorrências e B.O. registrados</strong></div>
         </div>
-    """, unsafe_allow_html=True)
+    """)
 
     st.download_button(
-        label="📥 Descarregar Planilha Completa Spassu (.xlsx)",
+        label="Baixar planilha completa Spassu (.xlsx)",
         data=dados_planilha_oficial,
         file_name="Gestao_Frota_Spassu_PMVV_Oficial.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        type="primary"
     )
+
 # ----------------- 6. NOVO LANÇAMENTO (TÉCNICO / GESTOR) -----------------
-elif menu == "📋 Novo Lançamento (Técnico)":
-    st.markdown("<h1>📸 Registro Diário de KM e Rota</h1>", unsafe_allow_html=True)
+elif menu == "Novo Lançamento":
+    page_header("Registro diário de KM e rota", "Fotografe o painel para preencher a quilometragem automaticamente.")
     df_v = carregar_veiculos()
 
     opcoes_veiculo = {f"{row['placa']} - {row['modelo']} ({row['tecnico']})": row['placa'] for _, row in df_v.iterrows()}
-    escolha = st.selectbox("Selecione o Veículo", list(opcoes_veiculo.keys()))
+    escolha = st.selectbox("Selecione o veículo", list(opcoes_veiculo.keys()))
     placa_sel = opcoes_veiculo[escolha]
     veiculo_atual = df_v[df_v["placa"] == placa_sel].iloc[0]
 
     foto_painel = st.camera_input("Tirar foto do painel") or st.file_uploader("Enviar foto do odômetro", type=['jpg', 'jpeg', 'png'])
     km_detectado = 0
     if foto_painel:
-        with st.spinner("🤖 Processando odômetro com IA..."):
+        with st.spinner("Processando odômetro com IA..."):
             dados = extrair_dados_imagem(foto_painel, prompt_tipo="hodometro")
             if dados and "km" in dados:
                 km_detectado = dados["km"]
-                st.success(f"Quilometragem detectada: **{km_detectado} km**")
+                st.success(f"Quilometragem detectada: **{fmt_int(km_detectado)} km**")
 
-    st.markdown(f"""
-        <div style="background: rgba(56, 189, 248, 0.1); border-left: 4px solid #38bdf8; padding: 12px 16px; border-radius: 6px; margin: 15px 0;">
-            Odômetro anterior registrado: <strong>{veiculo_atual['km_atual']:,} km</strong>
-        </div>
-    """.replace(",", "."), unsafe_allow_html=True)
+    render(f"""
+        <div class="callout">Odômetro anterior registrado: <strong>{fmt_int(veiculo_atual['km_atual'])} km</strong></div>
+    """)
 
     with st.form("form_km"):
-        data_registro = st.date_input("Data do Registro", datetime.date.today())
-        km_final = st.number_input("KM Atual / Final do Painel", min_value=int(veiculo_atual["km_atual"]), value=max(int(veiculo_atual["km_atual"]), int(km_detectado)))
-        rota = st.text_input("Destino / Rota / Chamado", placeholder="Ex: Atendimento PMVV - Posto de Saúde")
-        tecnico = st.text_input("Nome do Técnico", value=veiculo_atual["tecnico"])
+        data_registro = st.date_input("Data do registro", datetime.date.today())
+        km_final = st.number_input("KM atual / final do painel", min_value=int(veiculo_atual["km_atual"]), value=max(int(veiculo_atual["km_atual"]), int(km_detectado)))
+        rota = st.text_input("Destino / rota / chamado", placeholder="Ex: Atendimento PMVV - Posto de Saúde")
+        tecnico = st.text_input("Nome do técnico", value=veiculo_atual["tecnico"])
         obs = st.text_area("Observações (opcional)")
 
-        salvar = st.form_submit_button("✅ Gravar Lançamento no Banco")
+        salvar = st.form_submit_button("Gravar lançamento", type="primary")
         if salvar:
             if km_final < veiculo_atual["km_atual"]:
-                st.error("Erro: O KM informado não pode ser menor que o odômetro anterior.")
+                st.error("O KM informado não pode ser menor que o odômetro anterior.")
             else:
                 km_rodado = int(km_final) - int(veiculo_atual["km_atual"])
                 supabase.table("registros_km").insert({
@@ -987,48 +935,48 @@ elif menu == "📋 Novo Lançamento (Técnico)":
                 }).execute()
 
                 supabase.table("veiculos").update({"km_atual": int(km_final)}).eq("placa", placa_sel).execute()
-                
-                st.toast(f"Quilometragem do {placa_sel} salva com sucesso!", icon="✅")
-                st.balloons()
+
+                st.toast(f"Quilometragem do {placa_sel} salva.")
                 st.success(f"""
-                ### ✅ Lançamento Confirmado com Sucesso!
+                **Lançamento confirmado**
+
                 * **Veículo:** `{placa_sel}`
                 * **Condutor:** {tecnico}
-                * **Odômetro Final:** **{int(km_final):,} km** (Rodou: {km_rodado:,} km)
+                * **Odômetro final:** **{fmt_int(km_final)} km** (rodou {fmt_int(km_rodado)} km)
                 * **Data:** {data_registro.strftime('%d/%m/%Y')}
-                """.replace(",", "."))
+                """)
 
 # ----------------- 7. REGISTRO DE ABASTECIMENTO (TÉCNICO / GESTOR) -----------------
-elif menu == "⛽ Registro de Abastecimento":
-    st.markdown("<h1>⛽ Registro de Abastecimento</h1>", unsafe_allow_html=True)
+elif menu == "Registro de Abastecimento":
+    page_header("Registro de abastecimento", "Fotografe o cupom fiscal para preencher os dados automaticamente.")
     df_v = carregar_veiculos()
     saldos = carregar_saldos(mes_ano_atual)
 
     foto_cupom = st.camera_input("Tirar foto do cupom") or st.file_uploader("Enviar comprovante fiscal", type=['jpg', 'jpeg', 'png'])
     dados_iniciais = {"litros": 0.0, "valor_total": 0.0, "combustivel": "Etanol", "posto": ""}
     if foto_cupom:
-        with st.spinner("🤖 Lendo dados do cupom fiscal com IA..."):
+        with st.spinner("Lendo dados do cupom fiscal com IA..."):
             extraido = extrair_dados_imagem(foto_cupom, prompt_tipo="cupom")
             if extraido:
                 dados_iniciais.update(extraido)
-                st.success("Cupom fiscal identificado com sucesso!")
+                st.success("Cupom fiscal identificado com sucesso.")
 
     with st.form("form_abastecimento"):
-        placa = st.selectbox("Placa do Veículo", df_v["placa"].tolist())
+        placa = st.selectbox("Placa do veículo", df_v["placa"].tolist())
         saldo_disponivel = saldos.get(placa, VALOR_CARGA_MENSAL)
-        st.write(f"Saldo disponível neste cartão: **R$ {saldo_disponivel:,.2f}**")
+        st.write(f"Saldo disponível neste cartão: **{fmt_brl(saldo_disponivel)}**")
 
         col1, col2 = st.columns(2)
         with col1:
-            km_abast = st.number_input("KM Atual do Veículo", min_value=0)
-            litros = st.number_input("Litros Abastecidos", min_value=0.0, value=float(dados_iniciais.get("litros", 0.0)), step=0.1)
-            valor_total = st.number_input("Valor Total Pago (R$)", min_value=0.0, value=float(dados_iniciais.get("valor_total", 0.0)), step=0.5)
+            km_abast = st.number_input("KM atual do veículo", min_value=0)
+            litros = st.number_input("Litros abastecidos", min_value=0.0, value=float(dados_iniciais.get("litros", 0.0)), step=0.1)
+            valor_total = st.number_input("Valor total pago (R$)", min_value=0.0, value=float(dados_iniciais.get("valor_total", 0.0)), step=0.5)
         with col2:
             combustivel = st.selectbox("Combustível", ["Etanol", "Gasolina Comum", "Gasolina Aditivada"])
-            posto = st.text_input("Posto de Combustível", value=dados_iniciais.get("posto", ""))
-            tecnico = st.text_input("Técnico Responsável")
+            posto = st.text_input("Posto de combustível", value=dados_iniciais.get("posto", ""))
+            tecnico = st.text_input("Técnico responsável")
 
-        gravar_abast = st.form_submit_button("💾 Salvar Abastecimento")
+        gravar_abast = st.form_submit_button("Salvar abastecimento", type="primary")
         if gravar_abast:
             if valor_total <= 0:
                 st.error("Informe um valor válido.")
@@ -1048,30 +996,29 @@ elif menu == "⛽ Registro de Abastecimento":
 
                 novo_saldo = max(0.0, saldo_disponivel - valor_total)
                 supabase.table("cartoes_saldo").update({"saldo_atual": novo_saldo}).eq("placa", placa).eq("mes_ano", mes_ano_atual).execute()
-                
-                st.toast(f"Abastecimento do {placa} gravado!", icon="⛽")
+
+                st.toast(f"Abastecimento do {placa} gravado.")
                 st.success(f"""
-                ### ⛽ Abastecimento Gravado com Sucesso!
+                **Abastecimento gravado**
+
                 * **Veículo:** `{placa}`
                 * **Combustível:** {combustivel} ({litros:.2f} L no {posto})
-                * **Valor Pago:** **R$ {valor_total:,.2f}**
-                * **Novo Saldo do Cartão:** **R$ {novo_saldo:,.2f}**
+                * **Valor pago:** **{fmt_brl(valor_total)}**
+                * **Novo saldo do cartão:** **{fmt_brl(novo_saldo)}**
                 """)
 
 # ----------------- REGISTRAR INCIDENTE / OCORRÊNCIA COM IA (TÉCNICO & GESTOR) -----------------
-elif menu == "🚨 Registrar Incidente / Ocorrência":
-    st.markdown("<h1>🚨 Registro de Incidente ou Sinistro</h1>", unsafe_allow_html=True)
-    st.caption("Aponte a câmara para o Boletim de Ocorrência (B.O.) ou envie a foto para autopreencher os dados via Inteligência Artificial.")
+elif menu == "Registrar Incidente":
+    page_header("Registro de incidente ou sinistro", "Fotografe o Boletim de Ocorrência (B.O.) ou envie a imagem para preencher os dados com IA.")
 
     df_v = carregar_veiculos()
     opcoes_veiculo = {f"{row['placa']} - {row['modelo']} ({row['tecnico']})": row['placa'] for _, row in df_v.iterrows()}
-    escolha = st.selectbox("Selecione o Veículo Envolvido", list(opcoes_veiculo.keys()))
+    escolha = st.selectbox("Selecione o veículo envolvido", list(opcoes_veiculo.keys()))
     placa_sel = opcoes_veiculo[escolha]
     veiculo_atual = df_v[df_v["placa"] == placa_sel].iloc[0]
 
-    # Captura da Câmara ou Upload do Ficheiro do B.O.
-    foto_bo = st.camera_input("📷 Tirar foto do B.O. / Documento de Ocorrência") or st.file_uploader(
-        "📁 Ou envie a foto/documento do B.O.", type=['jpg', 'jpeg', 'png']
+    foto_bo = st.camera_input("Tirar foto do B.O. / documento de ocorrência") or st.file_uploader(
+        "Ou envie a foto/documento do B.O.", type=['jpg', 'jpeg', 'png']
     )
 
     dados_ia = {
@@ -1087,11 +1034,11 @@ elif menu == "🚨 Registrar Incidente / Ocorrência":
     }
 
     if foto_bo:
-        with st.spinner("🤖 A processar o Boletim de Ocorrência com IA..."):
+        with st.spinner("Processando o Boletim de Ocorrência com IA..."):
             extraido = extrair_dados_imagem(foto_bo, prompt_tipo="boletim")
             if extraido:
                 dados_ia.update(extraido)
-                st.success("✅ Boletim de Ocorrência lido com sucesso! Confira os dados nos campos abaixo.")
+                st.success("Boletim de Ocorrência lido com sucesso. Confira os dados nos campos abaixo.")
 
     # Tratamento defensivo de data e hora
     try:
@@ -1108,7 +1055,7 @@ elif menu == "🚨 Registrar Incidente / Ocorrência":
     with st.form("form_incidente"):
         col1, col2 = st.columns(2)
         with col1:
-            tipo_incidente = st.selectbox("Tipo de Incidente", [
+            tipo_incidente = st.selectbox("Tipo de incidente", [
                 "Colisão / Batida",
                 "Multa / Infração de Trânsito",
                 "Avaria Leve / Arranhão / Amassado",
@@ -1117,34 +1064,33 @@ elif menu == "🚨 Registrar Incidente / Ocorrência":
                 "Dano por Terceiros",
                 "Outro"
             ])
-            data_ocorrido = st.date_input("Data do Ocorrido", value=data_default)
-            hora_ocorrido = st.time_input("Horário Aproximado", value=hora_default)
-            tecnico_condutor = st.text_input("Nome do Condutor", value=dados_ia.get("condutor") or veiculo_atual["tecnico"])
-            cnh_condutor = st.text_input("Registro da CNH do Condutor", value=dados_ia.get("cnh", ""))
+            data_ocorrido = st.date_input("Data do ocorrido", value=data_default)
+            hora_ocorrido = st.time_input("Horário aproximado", value=hora_default)
+            tecnico_condutor = st.text_input("Nome do condutor", value=dados_ia.get("condutor") or veiculo_atual["tecnico"])
+            cnh_condutor = st.text_input("Registro da CNH do condutor", value=dados_ia.get("cnh", ""))
 
         with col2:
             numero_bo = st.text_input("Número do B.O. (Boletim de Ocorrência)", value=dados_ia.get("numero_bo", ""))
-            local_ocorrencia = st.text_input("Local da Ocorrência", value=dados_ia.get("local", ""))
+            local_ocorrencia = st.text_input("Local da ocorrência", value=dados_ia.get("local", ""))
             houve_terceiros = st.checkbox("Houve terceiros / outro veículo envolvido?", value=bool(dados_ia.get("houve_terceiros", False)))
             dados_terceiros = st.text_area(
-                "Dados dos Terceiros Envolvidos (se houver)",
+                "Dados dos terceiros envolvidos (se houver)",
                 value=dados_ia.get("dados_terceiros", ""),
-                placeholder="Nome, Telefone, Placa e Modelo do outro veículo...",
+                placeholder="Nome, telefone, placa e modelo do outro veículo...",
                 height=95
             )
 
-        st.markdown("<hr style='border: 0.5px solid rgba(255,255,255,0.08); margin: 15px 0;'>", unsafe_allow_html=True)
         descricao = st.text_area(
-            "Descrição Detalhada do Ocorrido",
+            "Descrição detalhada do ocorrido",
             value=dados_ia.get("descricao", ""),
             placeholder="Relate como ocorreu o sinistro, danos visíveis e contexto...",
             height=120
         )
 
-        salvar_incidente = st.form_submit_button("🚨 Gravar Registro de Incidente")
+        salvar_incidente = st.form_submit_button("Gravar incidente", type="primary")
         if salvar_incidente:
             if not descricao:
-                st.error("Por favor, descreva sucintamente o ocorrido.")
+                st.error("Descreva sucintamente o ocorrido.")
             else:
                 data_hora_completa = datetime.datetime.combine(data_ocorrido, hora_ocorrido).isoformat()
                 supabase.table("incidentes").insert({
@@ -1161,64 +1107,65 @@ elif menu == "🚨 Registrar Incidente / Ocorrência":
                     "status": "Em Análise pela Gestão"
                 }).execute()
 
-                st.toast("Incidente registrado com sucesso no sistema!", icon="🚨")
+                st.toast("Incidente registrado no sistema.")
                 st.warning(f"""
-                ### 🚨 Incidente Registrado!
+                **Incidente registrado**
+
                 * **Veículo:** `{placa_sel}`
                 * **Tipo:** {tipo_incidente}
                 * **Condutor:** {tecnico_condutor} (CNH: {cnh_condutor or 'N/A'})
-                * **Data/Hora:** {data_ocorrido.strftime('%d/%m/%Y')} às {hora_ocorrido.strftime('%H:%M')}
+                * **Data/hora:** {data_ocorrido.strftime('%d/%m/%Y')} às {hora_ocorrido.strftime('%H:%M')}
                 * **B.O.:** {numero_bo or 'Não informado'}
                 """)
 
 # ----------------- 8. ALERTAS DE MANUTENÇÃO (TODOS) -----------------
-elif menu == "🛠️ Alertas de Manutenção":
-    st.markdown("<h1>🛠️ Monitor de Manutenção Preventiva</h1>", unsafe_allow_html=True)
+elif menu == "Alertas de Manutenção":
+    page_header("Manutenção preventiva", "Acompanhe as revisões de cada veículo e registre as realizadas.")
     df_v = carregar_veiculos()
     cols = st.columns(len(df_v)) if len(df_v) > 0 else [st.container()]
-    
-    for i, row in df_v.iterrows():
+
+    for i, (_, row) in enumerate(df_v.iterrows()):
         placa = row["placa"]
         km_atual = int(row["km_atual"])
         prox_rev = int(row["proxima_revisao"])
         km_restante = prox_rev - km_atual
-        
+
         with cols[i]:
             if km_restante > 1000:
-                borda = "#22c55e"
-                badge = f'<span class="metric-badge badge-green">✓ Em dia ({km_restante:,} km restantes)</span>'
+                tom = "ok"
+                badge = pill(f"Em dia · {fmt_int(km_restante)} km restantes", "ok")
             elif km_restante >= 0:
-                borda = "#f59e0b"
-                badge = f'<span class="metric-badge badge-amber">⚠️ Agendar Revisão ({km_restante:,} km restantes)</span>'
+                tom = "warn"
+                badge = pill(f"Agendar revisão · {fmt_int(km_restante)} km restantes", "warn")
             else:
-                borda = "#ef4444"
-                badge = f'<span class="metric-badge" style="background: rgba(239,68,68,0.2); color: #f87171;">🚨 VENCIDA ({abs(km_restante):,} km excedidos)</span>'
+                tom = "bad"
+                badge = pill(f"Vencida · {fmt_int(abs(km_restante))} km excedidos", "bad")
 
-            st.markdown(f"""
-                <div class="vehicle-card" style="border-left: 4px solid {borda}; margin-bottom: 12px;">
-                    <span class="vehicle-plate">{placa}</span>
-                    <h4 style="margin: 10px 0 4px 0; color: #fff;">{row['modelo']}</h4>
-                    <p style="color: #94a3b8; font-size: 0.85rem; margin: 0 0 10px 0;">Última Revisão: {row['ultima_revisao']}</p>
-                    <div style="font-size: 0.85rem; color: #cbd5e1;">KM Atual: <strong>{km_atual:,} km</strong></div>
-                    <div style="font-size: 0.85rem; color: #cbd5e1;">Próxima: <strong>{prox_rev:,} km</strong></div>
+            render(f"""
+                <div class="panel {tom}">
+                    <div class="panel-head"><span class="plate">{placa}</span></div>
+                    <div class="panel-title">{row['modelo']}</div>
+                    <div class="panel-sub">Última revisão: {row['ultima_revisao']}</div>
+                    <div class="row"><span>KM atual</span><strong>{fmt_int(km_atual)} km</strong></div>
+                    <div class="row"><span>Próxima revisão</span><strong>{fmt_int(prox_rev)} km</strong></div>
                     <div style="margin-top: 10px;">{badge}</div>
                 </div>
-            """.replace(",", "."), unsafe_allow_html=True)
-            
-            with st.expander(f"⚙️ Realizar Revisão ({placa})"):
-                oficina = st.text_input("Oficina / Prestador", placeholder="Ex: Auto Center", key=f"ofi_{placa}")
-                valor_rev = st.number_input("Valor Gasto (R$)", min_value=0.0, step=50.0, key=f"val_{placa}")
-                
-                if st.button(f"✅ Confirmar Revisão de {prox_rev:,} km", key=f"btn_rev_{placa}"):
+            """)
+
+            with st.expander(f"Registrar revisão ({placa})"):
+                oficina = st.text_input("Oficina / prestador", placeholder="Ex: Auto Center", key=f"ofi_{placa}")
+                valor_rev = st.number_input("Valor gasto (R$)", min_value=0.0, step=50.0, key=f"val_{placa}")
+
+                if st.button(f"Confirmar revisão de {fmt_int(prox_rev)} km", key=f"btn_rev_{placa}", type="primary"):
                     nova_prox_rev = prox_rev + 10000
                     data_hoje = datetime.date.today().strftime("%d/%m/%Y")
-                    desc_ultima = f"{prox_rev:,} km em {data_hoje}".replace(",", ".")
-                    
+                    desc_ultima = f"{fmt_int(prox_rev)} km em {data_hoje}"
+
                     supabase.table("veiculos").update({
                         "proxima_revisao": nova_prox_rev,
                         "ultima_revisao": desc_ultima
                     }).eq("placa", placa).execute()
-                    
-                    st.toast(f"Revisão de {placa} confirmada!", icon="🎉")
-                    st.success(f"Revisão registrada! Próxima meta: {nova_prox_rev:,} km".replace(",", "."))
+
+                    st.toast(f"Revisão de {placa} confirmada.")
+                    st.success(f"Revisão registrada. Próxima meta: {fmt_int(nova_prox_rev)} km")
                     st.rerun()
