@@ -45,6 +45,33 @@ st.markdown("""
     .stApp { background: var(--bg); color: var(--text); }
     .block-container { padding-top: 2.4rem; max-width: 1240px; }
 
+/* Botão de reabrir barra lateral sempre visível e com destaque */
+    button[data-testid="stSidebarCollapsedControl"],
+    button[data-testid="stSidebarCollapseButton"],
+    [data-testid="stSidebarCollapsedControl"] button {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        background: rgba(43, 111, 224, 0.3) !important;
+        border: 1px solid #4c8dff !important;
+        border-radius: 8px !important;
+        color: #4c8dff !important;
+        top: 10px !important;
+        left: 10px !important;
+        z-index: 999999 !important;
+        transition: all 0.2s ease !important;
+    }
+
+    button[data-testid="stSidebarCollapsedControl"]:hover,
+    button[data-testid="stSidebarCollapseButton"]:hover {
+        background: rgba(43, 111, 224, 0.6) !important;
+        transform: scale(1.05);
+    }
+
+    button[data-testid="stSidebarCollapsedControl"] svg,
+    button[data-testid="stSidebarCollapseButton"] svg {
+        fill: #4c8dff !important;
+    }
     /* Remove o ruído do cabeçalho padrão do Streamlit */
     [data-testid="stHeader"] { background: transparent; }
     [data-testid="stToolbar"], [data-testid="stDecoration"],
