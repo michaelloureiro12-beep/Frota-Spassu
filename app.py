@@ -45,11 +45,41 @@ st.markdown("""
     .stApp { background: var(--bg); color: var(--text); }
     .block-container { padding-top: 2.4rem; max-width: 1240px; }
 
-/* Botão de reabrir barra lateral sempre visível e com destaque */
-    button[data-testid="stSidebarCollapsedControl"],
-    button[data-testid="stSidebarCollapseButton"],
+/* Garantir que o cabeçalho não bloqueia o botão de reabrir a barra lateral */
+    [data-testid="stHeader"] {
+        background: transparent !important;
+        z-index: 100 !important;
+    }
+
+    [data-testid="stToolbar"], [data-testid="stDecoration"],
+    [data-testid="stStatusWidget"], [data-testid="stAppDeployButton"],
+    [class*="viewerBadge"], footer { 
+        display: none !important; 
+    }
+
+    /* Forçar a exibição do contentor e do botão de reabrir a barra lateral */
+    [data-testid="stSidebarCollapsedControl"],
+    div[data-testid="stSidebarCollapsedControl"],
     [data-testid="stSidebarCollapsedControl"] button {
         display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        background: rgba(30, 41, 59, 0.9) !important;
+        border: 1px solid #38bdf8 !important;
+        border-radius: 8px !important;
+        color: #38bdf8 !important;
+        position: fixed !important;
+        top: 12px !important;
+        left: 12px !important;
+        z-index: 999999 !important;
+    }
+
+    [data-testid="stSidebarCollapsedControl"] svg,
+    [data-testid="stSidebarCollapsedControl"] button svg {
+        fill: #38bdf8 !important;
+        stroke: #38bdf8 !important;
+        display: block !important;
+    }
         visibility: visible !important;
         opacity: 1 !important;
         background: rgba(43, 111, 224, 0.3) !important;
